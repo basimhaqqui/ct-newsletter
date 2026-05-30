@@ -4,5 +4,6 @@ node_modules/
 # runtime artifacts (regenerated every run)
 tweets.json
 digest.html
+market.json
 *.log
 fetch.err
