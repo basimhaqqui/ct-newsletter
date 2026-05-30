@@ -114,8 +114,13 @@ if (!events.length) {
 await persist();
 
 // Build one Telegram message for all events this cycle.
+const stamp = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true,
+  timeZoneName: "short", // → PST / PDT automatically
+}).format(new Date());
 const icon = { OPENED: "🟢", CLOSED: "⚪️", FLIPPED: "🔄", INCREASED: "🔼", REDUCED: "🔽" };
-const lines = ["🐋 <b>Hyperliquid wallet moves</b>", ""];
+const lines = [`🐋 <b>Hyperliquid wallet moves</b>  <i>${stamp}</i>`, ""];
 for (const e of events) {
   const link = `https://hypurrscan.io/address/${e.w.addr}`;
   const head = `${icon[e.kind]} <a href="${link}"><b>${e.w.label}</b></a> ${e.kind}`;
