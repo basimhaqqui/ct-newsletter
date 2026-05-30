@@ -75,6 +75,11 @@ async function handle(text, chatId, env) {
       case "/scorecard": return send(env, chatId, await dispatch(env, "hl-scorecard.yml", "📊 Running the wallet scorecard — arriving shortly."));
       case "/leaderboard": return send(env, chatId, await dispatch(env, "leaderboard.yml", "🏆 Screening the HL leaderboard — top traders arriving shortly."));
       case "/ta": return needArg("Usage: /ta &lt;coin&gt; (e.g. /ta hype)") && send(env, chatId, await dispatchTa(env, argStr));
+      case "/smartmoney": case "/sm": return send(env, chatId, await dispatch(env, "smartmoney.yml", "🧠 Reading top traders’ net positioning — arriving shortly."));
+      // condition watches
+      case "/watch": return needArg(watchUsage()) && send(env, chatId, await cmdWatch(env, args));
+      case "/watches": return send(env, chatId, await cmdWatches(env));
+      case "/unwatch": return needArg("Usage: /unwatch &lt;id&gt; (see /watches)") && send(env, chatId, await cmdUnwatch(env, args[0]));
       // X / Twitter (Apify cost)
       case "/x": return needArg("Usage: /x &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "x", argStr, `📱 Fetching @${esc(argStr.replace(/^@/, ""))}…`));
       case "/ticker": return needArg("Usage: /ticker &lt;symbol&gt;") && send(env, chatId, await dispatchX(env, "ticker", argStr, `📱 Scanning CT for $${esc(argStr.replace(/^\$/, "").toUpperCase())}…`));
@@ -205,6 +210,41 @@ async function cmdUntrack(env, q) {
   return ok ? `✅ Untracked <b>${esc(removed.label)}</b> (${list.length} left).` : "⚠️ couldn’t update wallets.json.";
 }
 
+// ---- condition watches ----
+const COND_RE = /^(price(<=|>=|<|>)\d+\.?\d*|rsi(<=|>=|<|>)\d+\.?\d*|funding(<=|>=|<|>)-?\d+\.?\d*|whales-(long|short))$/;
+function watchUsage() {
+  return "Usage: /watch &lt;coin&gt; &lt;conditions…&gt;\nConditions: price&lt;55 · rsi&lt;50 · funding&gt;50 · whales-long · whales-short\nEx: <code>/watch hype price&lt;55 rsi&lt;50 whales-long</code>";
+}
+async function cmdWatch(env, args) {
+  const coin = (args[0] || "").toUpperCase().replace(/^\$/, "");
+  const conds = args.slice(1).map((c) => c.toLowerCase());
+  if (!conds.length) return watchUsage();
+  const bad = conds.filter((c) => !COND_RE.test(c));
+  if (bad.length) return `Unrecognized condition(s): ${esc(bad.join(", "))}\n\n${watchUsage()}`;
+  const f = await ghGet(env, "state/watches.json");
+  const list = Array.isArray(f?.content) ? f.content : [];
+  const id = "w" + Date.now().toString(36).slice(-4);
+  list.push({ id, coin, conds, created: Math.floor(Date.now() / 1000) });
+  const ok = await ghPut(env, "state/watches.json", list, f?.sha, `bot: watch ${coin}`);
+  if (!ok) return "⚠️ couldn’t save the watch.";
+  return `🔔 Watching <b>${esc(coin)}</b> — fires when ALL met: ${conds.map(esc).join(", ")}\n(id <code>${id}</code>, checked every 30 min, one-shot)`;
+}
+async function cmdWatches(env) {
+  const f = await ghGet(env, "state/watches.json");
+  const list = Array.isArray(f?.content) ? f.content : [];
+  if (!list.length) return "No active watches. Add one with /watch.";
+  return "🔔 <b>Active watches</b>\n" + list.map((w) => `<code>${w.id}</code> ${esc(w.coin)}: ${w.conds.map(esc).join(", ")}`).join("\n");
+}
+async function cmdUnwatch(env, id) {
+  const f = await ghGet(env, "state/watches.json");
+  const list = Array.isArray(f?.content) ? f.content : [];
+  const idx = list.findIndex((w) => w.id === id);
+  if (idx < 0) return `No watch with id "${esc(id)}". See /watches.`;
+  const [r] = list.splice(idx, 1);
+  const ok = await ghPut(env, "state/watches.json", list, f.sha, `bot: unwatch ${r.id}`);
+  return ok ? `✅ Removed watch <code>${esc(r.id)}</code> (${esc(r.coin)}).` : "⚠️ couldn’t update watches.";
+}
+
 // ---- mute ----
 async function cmdMute(env, durArg, unmute = false) {
   const f = await ghGet(env, "state/mute.json");
@@ -281,6 +321,9 @@ function helpText() {
     "/market · /hl &lt;coin&gt; · /price &lt;coin&gt;",
     "", "📈 <b>Analysis</b>",
     "/ta &lt;coin&gt; — full technical read + whale confluence",
+    "/smartmoney — top traders’ net positioning per coin",
+    "/watch &lt;coin&gt; &lt;conds&gt; — alert when conditions hit",
+    "/watches · /unwatch &lt;id&gt;",
     "", "📰 <b>On-demand</b> (triggers a run)",
     "/digest · /scorecard · /leaderboard",
     "", "📱 <b>X / Twitter</b> (Apify cost)",
