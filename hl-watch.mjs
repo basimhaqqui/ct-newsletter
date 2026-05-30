@@ -22,6 +22,11 @@ const usd = (n) => {
     : `${s}$${a.toFixed(0)}`;
 };
 const px = (n) => (n >= 1000 ? Math.round(n).toLocaleString("en-US") : n >= 1 ? n.toFixed(2) : n.toPrecision(3));
+const ptTime = (ms) => new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true,
+  timeZoneName: "short", // → PST / PDT automatically
+}).format(new Date(ms));
 
 const wallets = JSON.parse(await readFile("wallets.json", "utf8"));
 
@@ -50,6 +55,18 @@ async function fetchPositions(addr) {
     };
   }
   return out;
+}
+
+// Recent fills for a wallet → newest first. Gives the real on-chain time/price
+// of each open/close, which the positions endpoint doesn't carry.
+async function fetchFills(addr) {
+  const r = await fetch(INFO, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "userFills", user: addr }),
+  });
+  if (!r.ok) return [];
+  const j = await r.json();
+  return Array.isArray(j) ? j.sort((a, b) => num(b.time) - num(a.time)) : [];
 }
 
 // Load previous snapshot (absent on first run).
@@ -113,25 +130,44 @@ if (!events.length) {
 }
 await persist();
 
+// Pull recent fills for the wallets that moved, so we can stamp each event with
+// its real on-chain time. Only involved wallets → minimal API calls.
+const fillsByWallet = {};
+for (const addr of [...new Set(events.map((e) => e.w.addr))]) {
+  fillsByWallet[addr] = await fetchFills(addr).catch(() => []);
+}
+// Newest fill for a coin that matches the kind of move (open vs close).
+const fillFor = (addr, coin, kind) => {
+  const closing = kind === "CLOSED" || kind === "REDUCED";
+  return (fillsByWallet[addr] || []).find((f) => {
+    if (f.coin !== coin) return false;
+    const isClose = /close/i.test(f.dir || "");
+    return closing ? isClose : !isClose;
+  }) || (fillsByWallet[addr] || []).find((f) => f.coin === coin);
+};
+const whenTag = (addr, coin, kind) => {
+  const f = fillFor(addr, coin, kind);
+  return f ? `  <i>${ptTime(num(f.time))}</i>` : "";
+};
+
 // Build one Telegram message for all events this cycle.
-const stamp = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Los_Angeles",
-  month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true,
-  timeZoneName: "short", // → PST / PDT automatically
-}).format(new Date());
+const stamp = ptTime(Date.now());
 const icon = { OPENED: "🟢", CLOSED: "⚪️", FLIPPED: "🔄", INCREASED: "🔼", REDUCED: "🔽" };
-const lines = [`🐋 <b>Hyperliquid wallet moves</b>  <i>${stamp}</i>`, ""];
+const lines = [`🐋 <b>Hyperliquid wallet moves</b>  <i>as of ${stamp}</i>`, ""];
 for (const e of events) {
   const link = `https://hypurrscan.io/address/${e.w.addr}`;
   const head = `${icon[e.kind]} <a href="${link}"><b>${e.w.label}</b></a> ${e.kind}`;
+  const when = whenTag(e.w.addr, e.coin, e.kind);
   if (e.kind === "CLOSED") {
-    lines.push(`${head} <b>${e.b.side} ${e.b.lev}x ${e.coin}</b>`);
+    const f = fillFor(e.w.addr, e.coin, e.kind);
+    const realized = f && f.closedPnl !== undefined ? ` · realized ${usd(num(f.closedPnl))}` : "";
+    lines.push(`${head} <b>${e.b.side} ${e.b.lev}x ${e.coin}</b>${realized}${when}`);
   } else if (e.kind === "FLIPPED") {
-    lines.push(`${head} ${e.b.side}→<b>${e.c.side} ${e.c.lev}x ${e.coin}</b>`);
+    lines.push(`${head} ${e.b.side}→<b>${e.c.side} ${e.c.lev}x ${e.coin}</b>${when}`);
     lines.push(`   size ${usd(e.c.notional)} · entry $${px(e.c.entry)} · uPnL ${usd(e.c.uPnl)}`);
   } else {
     const c = e.c;
-    lines.push(`${head} <b>${c.side} ${c.lev}x ${e.coin}</b>${e.change ? ` (${e.change > 0 ? "+" : ""}${Math.round(e.change * 100)}%)` : ""}`);
+    lines.push(`${head} <b>${c.side} ${c.lev}x ${e.coin}</b>${e.change ? ` (${e.change > 0 ? "+" : ""}${Math.round(e.change * 100)}%)` : ""}${when}`);
     lines.push(`   size ${usd(c.notional)} · entry $${px(c.entry)} · mark $${px(c.mark)} · uPnL ${usd(c.uPnl)}`);
   }
 }
