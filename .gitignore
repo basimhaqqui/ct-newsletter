@@ -1,0 +1,8 @@
+.env
+node_modules/
+
+# runtime artifacts (regenerated every run)
+tweets.json
+digest.html
+*.log
+fetch.err
