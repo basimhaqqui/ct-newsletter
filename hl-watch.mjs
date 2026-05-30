@@ -11,6 +11,7 @@ const INFO = "https://api.hyperliquid.xyz/info";
 const STATE = process.env.STATE_FILE || "state/hl-positions.json";
 const RESIZE = Number(process.env.RESIZE_PCT || 0.25); // notional move to flag a resize
 const MIN_NOTIONAL = Number(process.env.MIN_NOTIONAL || 25000); // ignore dust; only meaningful positions
+const CONSENSUS_MIN = Number(process.env.CONSENSUS_MIN || 3); // N wallets aligned on a coin/side = consensus
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT = process.env.TELEGRAM_CHAT_ID;
 
@@ -112,6 +113,38 @@ for (const w of wallets) {
   }
 }
 
+// Directional consensus across the tracked wallets. Map "COIN|SIDE" -> holders.
+function consensus(state) {
+  const m = new Map();
+  for (const w of wallets) {
+    for (const [coin, p] of Object.entries(state[w.addr] || {})) {
+      const key = `${coin}|${p.side}`;
+      if (!m.has(key)) m.set(key, []);
+      m.get(key).push({ label: w.label, lev: p.lev, notional: p.notional });
+    }
+  }
+  return m;
+}
+const curC = consensus(snapshot);
+const prevC = consensus(prev);
+const consensusEvents = [];
+// formed/strengthened: reached threshold AND grew vs last alerted state
+for (const [key, holders] of curC) {
+  const before = (prevC.get(key) || []).length;
+  if (holders.length >= CONSENSUS_MIN && holders.length > before) {
+    const [coin, side] = key.split("|");
+    consensusEvents.push({ coin, side, holders });
+  }
+}
+// breaking: was consensus, now dropped below threshold
+for (const [key, holders] of prevC) {
+  const after = (curC.get(key) || []).length;
+  if (holders.length >= CONSENSUS_MIN && after < CONSENSUS_MIN) {
+    const [coin, side] = key.split("|");
+    consensusEvents.push({ coin, side, broke: true, after, was: holders.length });
+  }
+}
+
 // Persist ONLY on baseline or a real change — so the workflow commits (and you
 // get no churn) only when positions actually move. Minor uPnL drift is ignored.
 async function persist() {
@@ -124,7 +157,7 @@ if (firstRun) {
   console.error("first run — baseline established, no alerts.");
   process.exit(0);
 }
-if (!events.length) {
+if (!events.length && !consensusEvents.length) {
   console.error("no position changes."); // leave state untouched
   process.exit(0);
 }
@@ -153,7 +186,22 @@ const whenTag = (addr, coin, kind) => {
 // Build one Telegram message for all events this cycle.
 const stamp = ptTime(Date.now());
 const icon = { OPENED: "🟢", CLOSED: "⚪️", FLIPPED: "🔄", INCREASED: "🔼", REDUCED: "🔽" };
-const lines = [`🐋 <b>Hyperliquid wallet moves</b>  <i>as of ${stamp}</i>`, ""];
+const lines = [];
+
+// Consensus first — it's the highest-signal block.
+if (consensusEvents.length) {
+  for (const ce of consensusEvents) {
+    if (ce.broke) {
+      lines.push(`⚠️ <b>Consensus breaking — only ${ce.after}/${wallets.length} still ${ce.side} ${ce.coin}</b> (was ${ce.was})`);
+    } else {
+      lines.push(`🎯 <b>CONSENSUS — ${ce.holders.length}/${wallets.length} wallets ${ce.side} ${ce.coin}</b>`);
+      lines.push(`   ${ce.holders.map((h) => `${h.label} ${h.lev}x`).join(" · ")}`);
+    }
+  }
+  lines.push("");
+}
+
+if (events.length) lines.push(`🐋 <b>Hyperliquid wallet moves</b>  <i>as of ${stamp}</i>`, "");
 for (const e of events) {
   const link = `https://hypurrscan.io/address/${e.w.addr}`;
   const head = `${icon[e.kind]} <a href="${link}"><b>${e.w.label}</b></a> ${e.kind}`;
