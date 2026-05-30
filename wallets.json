@@ -1,6 +1,27 @@
 [
-  { "addr": "0x57f2819c959abbcf22623d5ec1d3164b213e9711", "label": "jefefefe", "note": "$5.7M allTime — best track record" },
-  { "addr": "0x3705121529bf40d77e8e7b625120551b151d9af2", "label": "0x3705…9af2", "note": "proven 9.5x prior P&L, diversified" },
-  { "addr": "0xdd54150be70967523a256f92db193845acf58714", "label": "0xdd54…8714", "note": "profitable across periods" },
-  { "addr": "0xc914267b2b98cabf20ef904de5fbb326c982855d", "label": "0xc914…855d", "note": "real diversified book" }
+  {
+    "addr": "0x57f2819c959abbcf22623d5ec1d3164b213e9711",
+    "label": "jefefefe",
+    "note": "$5.7M allTime — best track record"
+  },
+  {
+    "addr": "0x3705121529bf40d77e8e7b625120551b151d9af2",
+    "label": "0x3705…9af2",
+    "note": "proven 9.5x prior P&L, diversified"
+  },
+  {
+    "addr": "0xdd54150be70967523a256f92db193845acf58714",
+    "label": "0xdd54…8714",
+    "note": "profitable across periods"
+  },
+  {
+    "addr": "0xc914267b2b98cabf20ef904de5fbb326c982855d",
+    "label": "0xc914…855d",
+    "note": "real diversified book"
+  },
+  {
+    "addr": "0x4cae5bed586f6e73ae54ebd40a4ac4ed2c477c34",
+    "label": "cae-whale",
+    "note": "added via bot"
+  }
 ]
