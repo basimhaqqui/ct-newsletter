@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "wy25n",
+    "coin": "HYPE",
+    "conds": [
+      "price<1000",
+      "rsi<99",
+      "whales-long"
+    ],
+    "created": 1780181237
+  }
+]
