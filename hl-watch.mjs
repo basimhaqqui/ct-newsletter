@@ -31,6 +31,15 @@ const ptTime = (ms) => new Intl.DateTimeFormat("en-US", {
 
 const wallets = JSON.parse(await readFile("wallets.json", "utf8"));
 
+// Respect a mute set from the bot (/mute). Muted → update nothing, alert nothing;
+// on /unmute the next run diffs against the pre-mute baseline and catches up.
+try {
+  const m = JSON.parse(await readFile("state/mute.json", "utf8"));
+  if (m.muted && (!m.until || Math.floor(Date.now() / 1000) < m.until)) {
+    console.error("muted — skipping this cycle."); process.exit(0);
+  }
+} catch {}
+
 async function fetchPositions(addr) {
   const r = await fetch(INFO, {
     method: "POST", headers: { "Content-Type": "application/json" },

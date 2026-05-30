@@ -1,16 +1,17 @@
 // Telegram command bot on Cloudflare Workers (webhook).
 // Instant commands hit Hyperliquid/CoinGecko directly; heavy ones (digest,
-// scorecard) trigger the repo's GitHub Actions workflows.
+// scorecard, leaderboard, X) trigger the repo's GitHub Actions workflows.
+// /track, /untrack, /mute edit repo files via the GitHub API (single source
+// of truth: wallets.json + state/mute.json).
 //
-// Secrets (wrangler secret put ...): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
-//   WEBHOOK_SECRET, GITHUB_TOKEN (fine-grained PAT, Actions: read+write on the repo).
-// Vars (wrangler.toml [vars]): GITHUB_REPO = "basimhaqqui/ct-newsletter".
+// Secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WEBHOOK_SECRET, GITHUB_TOKEN.
+// Vars: GITHUB_REPO = "basimhaqqui/ct-newsletter".
 
 const INFO = "https://api.hyperliquid.xyz/info";
 const CG = "https://api.coingecko.com/api/v3";
 
-// Tracked wallets (keep in sync with wallets.json). /track will manage these later.
-const WALLETS = [
+// Fallback watchlist if the repo read fails (keep roughly in sync with wallets.json).
+const WALLETS_FALLBACK = [
   { addr: "0x57f2819c959abbcf22623d5ec1d3164b213e9711", label: "jefefefe" },
   { addr: "0x3705121529bf40d77e8e7b625120551b151d9af2", label: "0x3705…9af2" },
   { addr: "0xdd54150be70967523a256f92db193845acf58714", label: "0xdd54…8714" },
@@ -25,25 +26,22 @@ const usd = (n) => {
   return a >= 1e6 ? `${s}$${(a / 1e6).toFixed(2)}M` : a >= 1e3 ? `${s}$${(a / 1e3).toFixed(0)}k` : `${s}$${a.toFixed(0)}`;
 };
 const pxf = (n) => (n >= 1000 ? Math.round(n).toLocaleString("en-US") : n >= 1 ? n.toFixed(2) : n.toPrecision(3));
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const shortAddr = (a) => a.slice(0, 6) + "…" + a.slice(-4);
 
 export default {
   async fetch(request, env, ctx) {
-    if (request.method !== "POST") return new Response("ok"); // health check
-    // Verify the request really came from Telegram.
+    if (request.method !== "POST") return new Response("ok");
     if (env.WEBHOOK_SECRET && request.headers.get("x-telegram-bot-api-secret-token") !== env.WEBHOOK_SECRET) {
       return new Response("forbidden", { status: 403 });
     }
     let update;
     try { update = await request.json(); } catch { return new Response("ok"); }
-
     const msg = update.message || update.edited_message;
     const chatId = msg?.chat?.id;
     const text = (msg?.text || "").trim();
-    // Allowlist: only the owner's chat may use the bot.
     if (!chatId || String(chatId) !== String(env.TELEGRAM_CHAT_ID)) return new Response("ok");
     if (!text.startsWith("/")) return new Response("ok");
-
-    // Do the work async so we always 200 fast (Telegram retries on non-200).
     ctx.waitUntil(handle(text, chatId, env));
     return new Response("ok");
   },
@@ -51,35 +49,42 @@ export default {
 
 async function handle(text, chatId, env) {
   const [raw, ...args] = text.split(/\s+/);
-  const cmd = raw.split("@")[0].toLowerCase(); // strip /cmd@botname
+  const cmd = raw.split("@")[0].toLowerCase();
   const argStr = args.join(" ").trim();
   const needArg = (usage) => { if (!argStr) { send(env, chatId, usage); return false; } return true; };
   try {
     switch (cmd) {
-      case "/start":
-      case "/help": return send(env, chatId, helpText());
-      // instant (free, direct API)
-      case "/wallets": return send(env, chatId, await cmdWallets());
-      case "/wallet": return send(env, chatId, await cmdWallet(args[0]));
-      case "/consensus": return send(env, chatId, await cmdConsensus());
+      case "/start": case "/help": case "/menu": case "/commands":
+        return send(env, chatId, helpText());
+      // instant (free)
+      case "/wallets": return send(env, chatId, await cmdWallets(await getWallets(env)));
+      case "/wallet": return send(env, chatId, await cmdWallet(await getWallets(env), args[0]));
+      case "/consensus": return send(env, chatId, await cmdConsensus(await getWallets(env)));
       case "/market": return send(env, chatId, await cmdMarket());
       case "/hl": return send(env, chatId, await cmdHl(args[0]));
       case "/price": return send(env, chatId, await cmdPrice(args[0]));
       case "/status": return send(env, chatId, statusText(env));
+      // watchlist edits
+      case "/track": return needArg("Usage: /track &lt;0x address&gt; [label]") && send(env, chatId, await cmdTrack(env, args));
+      case "/untrack": return needArg("Usage: /untrack &lt;label|0x&gt;") && send(env, chatId, await cmdUntrack(env, argStr));
+      // alerts
+      case "/mute": return send(env, chatId, await cmdMute(env, args[0]));
+      case "/unmute": return send(env, chatId, await cmdMute(env, null, true));
       // dispatched runs
       case "/digest": return send(env, chatId, await dispatch(env, "daily.yml", "📰 Running the full digest — it’ll arrive shortly."));
       case "/scorecard": return send(env, chatId, await dispatch(env, "hl-scorecard.yml", "📊 Running the wallet scorecard — arriving shortly."));
-      // X / Twitter (Apify cost — each hits the scraper)
-      case "/x": return needArg("Usage: /x &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "x", argStr, `📱 Fetching @${argStr.replace(/^@/, "")}…`));
-      case "/ticker": return needArg("Usage: /ticker &lt;symbol&gt;") && send(env, chatId, await dispatchX(env, "ticker", argStr, `📱 Scanning CT for $${argStr.replace(/^\$/, "").toUpperCase()}…`));
-      case "/search": return needArg("Usage: /search &lt;query&gt;") && send(env, chatId, await dispatchX(env, "search", argStr, `🔎 Searching X for “${argStr}”…`));
-      case "/calls": return needArg("Usage: /calls &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "calls", argStr, `🎯 Finding @${argStr.replace(/^@/, "")}’s recent calls…`));
+      case "/leaderboard": return send(env, chatId, await dispatch(env, "leaderboard.yml", "🏆 Screening the HL leaderboard — top traders arriving shortly."));
+      // X / Twitter (Apify cost)
+      case "/x": return needArg("Usage: /x &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "x", argStr, `📱 Fetching @${esc(argStr.replace(/^@/, ""))}…`));
+      case "/ticker": return needArg("Usage: /ticker &lt;symbol&gt;") && send(env, chatId, await dispatchX(env, "ticker", argStr, `📱 Scanning CT for $${esc(argStr.replace(/^\$/, "").toUpperCase())}…`));
+      case "/search": return needArg("Usage: /search &lt;query&gt;") && send(env, chatId, await dispatchX(env, "search", argStr, `🔎 Searching X for “${esc(argStr)}”…`));
+      case "/calls": return needArg("Usage: /calls &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "calls", argStr, `🎯 Finding @${esc(argStr.replace(/^@/, ""))}’s recent calls…`));
       case "/trending": return send(env, chatId, await dispatchX(env, "trending", "", "🔥 Pulling CT trending…"));
       case "/discover": return send(env, chatId, await dispatchX(env, "discover", "", "🔭 Discovering caller candidates…"));
-      default: return send(env, chatId, `Unknown command ${cmd}. Try /help`);
+      default: return send(env, chatId, `Unknown command ${esc(cmd)}. Try /menu`);
     }
   } catch (e) {
-    return send(env, chatId, `⚠️ ${cmd} failed: ${e.message}`);
+    return send(env, chatId, `⚠️ ${esc(cmd)} failed: ${esc(e.message)}`);
   }
 }
 
@@ -90,6 +95,31 @@ async function send(env, chatId, textHtml) {
     body: JSON.stringify({ chat_id: chatId, text: textHtml, parse_mode: "HTML", disable_web_page_preview: true }),
   });
   return r.json();
+}
+
+// ---- GitHub contents API (read/write repo files) ----
+async function ghGet(env, path) {
+  const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/contents/${path}`, {
+    headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot" },
+  });
+  if (!r.ok) return null;
+  const j = await r.json();
+  try { return { content: JSON.parse(atob(j.content.replace(/\n/g, ""))), sha: j.sha }; }
+  catch { return { content: null, sha: j.sha }; }
+}
+async function ghPut(env, path, obj, sha, message) {
+  const body = { message, content: btoa(JSON.stringify(obj, null, 2) + "\n") };
+  if (sha) body.sha = sha;
+  const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/contents/${path}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return r.ok;
+}
+async function getWallets(env) {
+  const f = await ghGet(env, "wallets.json");
+  return Array.isArray(f?.content) && f.content.length ? f.content : WALLETS_FALLBACK;
 }
 
 // ---- Hyperliquid ----
@@ -106,36 +136,34 @@ async function allMids() {
   return r.json();
 }
 
-async function cmdWallets() {
-  const all = await Promise.all(WALLETS.map(async (w) => ({ w, pos: await positions(w.addr) })));
+async function cmdWallets(wallets) {
+  const all = await Promise.all(wallets.map(async (w) => ({ w, pos: await positions(w.addr) })));
   const lines = ["🐋 <b>Tracked wallets</b>", ""];
   for (const { w, pos } of all) {
-    if (!pos.length) { lines.push(`<b>${w.label}</b>: flat`); continue; }
-    const top = pos.slice(0, 4).map((p) => `${p.side} ${p.lev}x ${p.coin} (${usd(p.notional)})`).join(", ");
-    lines.push(`<b>${w.label}</b>: ${top}${pos.length > 4 ? ` +${pos.length - 4} more` : ""}`);
+    if (!pos.length) { lines.push(`<b>${esc(w.label)}</b>: flat`); continue; }
+    const top = pos.slice(0, 4).map((p) => `${p.side} ${p.lev}x ${esc(p.coin)} (${usd(p.notional)})`).join(", ");
+    lines.push(`<b>${esc(w.label)}</b>: ${top}${pos.length > 4 ? ` +${pos.length - 4} more` : ""}`);
   }
-  const c = consensusFrom(all);
-  if (c.length) { lines.push("", ...c.map((x) => `🎯 ${x}`)); }
+  const c = consensusFrom(all, wallets.length);
+  if (c.length) lines.push("", ...c.map((x) => `🎯 ${x}`));
   return lines.join("\n");
 }
-
-async function cmdWallet(qLabel) {
-  if (!qLabel) return "Usage: /wallet &lt;label&gt; (e.g. /wallet jefefefe)";
-  const w = WALLETS.find((x) => x.label.toLowerCase().includes(qLabel.toLowerCase()) || x.addr.toLowerCase() === qLabel.toLowerCase());
-  if (!w) return `No tracked wallet matching "${qLabel}". /wallets to list.`;
+async function cmdWallet(wallets, qLabel) {
+  if (!qLabel) return "Usage: /wallet &lt;label&gt;";
+  const w = wallets.find((x) => x.label.toLowerCase().includes(qLabel.toLowerCase()) || x.addr.toLowerCase() === qLabel.toLowerCase());
+  if (!w) return `No tracked wallet matching "${esc(qLabel)}". /wallets to list.`;
   const pos = await positions(w.addr);
-  if (!pos.length) return `<b>${w.label}</b> — flat (no positions ≥ ${usd(MIN_NOTIONAL)}).`;
-  const lines = [`🐋 <b>${w.label}</b>`, `<a href="https://hypurrscan.io/address/${w.addr}">${w.addr.slice(0, 10)}…</a>`, ""];
-  for (const p of pos) lines.push(`${p.side} ${p.lev}x ${p.coin} — ${usd(p.notional)} (uPnL ${usd(p.uPnl)})`);
+  if (!pos.length) return `<b>${esc(w.label)}</b> — flat (no positions ≥ ${usd(MIN_NOTIONAL)}).`;
+  const lines = [`🐋 <b>${esc(w.label)}</b>`, `<a href="https://hypurrscan.io/address/${w.addr}">${shortAddr(w.addr)}</a>`, ""];
+  for (const p of pos) lines.push(`${p.side} ${p.lev}x ${esc(p.coin)} — ${usd(p.notional)} (uPnL ${usd(p.uPnl)})`);
   return lines.join("\n");
 }
-
-async function cmdConsensus() {
-  const all = await Promise.all(WALLETS.map(async (w) => ({ w, pos: await positions(w.addr) })));
-  const c = consensusFrom(all);
-  return c.length ? "🎯 <b>Consensus</b>\n" + c.join("\n") : `No ${CONSENSUS_MIN}/${WALLETS.length}+ consensus right now.`;
+async function cmdConsensus(wallets) {
+  const all = await Promise.all(wallets.map(async (w) => ({ w, pos: await positions(w.addr) })));
+  const c = consensusFrom(all, wallets.length);
+  return c.length ? "🎯 <b>Consensus</b>\n" + c.join("\n") : `No ${CONSENSUS_MIN}/${wallets.length}+ consensus right now.`;
 }
-function consensusFrom(all) {
+function consensusFrom(all, total) {
   const m = new Map();
   for (const { w, pos } of all) for (const p of pos) {
     const k = `${p.coin}|${p.side}`;
@@ -145,104 +173,112 @@ function consensusFrom(all) {
   const out = [];
   for (const [k, who] of m) if (who.length >= CONSENSUS_MIN) {
     const [coin, side] = k.split("|");
-    out.push(`<b>${who.length}/${WALLETS.length} ${side} ${coin}</b> (${who.join(", ")})`);
+    out.push(`<b>${who.length}/${total} ${side} ${esc(coin)}</b> (${who.map(esc).join(", ")})`);
   }
   return out;
 }
 
-// ---- Market ----
-async function cmdMarket() {
-  const ids = "bitcoin,ethereum,solana,hyperliquid";
-  const r = await fetch(`${CG}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
-  const d = await r.json();
-  const row = (id, sym) => {
-    const x = d[id]; if (!x) return null;
-    const ch = num(x.usd_24h_change);
-    return `${sym} $${pxf(x.usd)} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`;
-  };
-  return "📊 <b>Markets</b>\n" + ["bitcoin:BTC", "ethereum:ETH", "solana:SOL", "hyperliquid:HYPE"]
-    .map((p) => row(...p.split(":"))).filter(Boolean).join("  •  ");
+// ---- watchlist edits ----
+async function cmdTrack(env, args) {
+  const addr = (args[0] || "").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(addr)) return "That doesn’t look like a wallet address (need 0x + 40 hex).";
+  const label = args.slice(1).join(" ").trim() || shortAddr(addr);
+  const f = await ghGet(env, "wallets.json");
+  const list = Array.isArray(f?.content) ? f.content : [];
+  if (list.some((w) => w.addr.toLowerCase() === addr)) return `Already tracking ${esc(label)}.`;
+  // confirm it's a real HL account + show what it holds
+  const pos = await positions(addr).catch(() => []);
+  list.push({ addr, label, note: "added via bot" });
+  const ok = await ghPut(env, "wallets.json", list, f?.sha, `bot: track ${label}`);
+  if (!ok) return "⚠️ couldn’t update wallets.json (GitHub write failed).";
+  const holding = pos.length ? "\nHolding: " + pos.slice(0, 3).map((p) => `${p.side} ${esc(p.coin)} (${usd(p.notional)})`).join(", ") : "\n(no open positions ≥ $25k right now)";
+  return `✅ Now tracking <b>${esc(label)}</b> (${list.length} total).${holding}\nAlerts begin next cycle.`;
 }
-async function cmdHl(coin) {
-  if (!coin) return "Usage: /hl &lt;coin&gt; (e.g. /hl hype)";
-  const mids = await allMids();
-  const key = Object.keys(mids).find((k) => k.toLowerCase() === coin.toLowerCase());
-  if (!key) return `No Hyperliquid market for "${coin}".`;
-  return `⚡ <b>${key}</b> (Hyperliquid mid): $${pxf(num(mids[key]))}`;
-}
-async function cmdPrice(q) {
-  if (!q) return "Usage: /price &lt;coin&gt; (e.g. /price wif)";
-  const s = await (await fetch(`${CG}/search?query=${encodeURIComponent(q)}`)).json();
-  const coin = (s.coins || [])[0];
-  if (!coin) return `No coin found for "${q}".`;
-  const p = await (await fetch(`${CG}/simple/price?ids=${coin.id}&vs_currencies=usd&include_24hr_change=true`)).json();
-  const x = p[coin.id]; if (!x) return `No price for ${coin.id}.`;
-  const ch = num(x.usd_24h_change);
-  return `💲 <b>${coin.symbol.toUpperCase()}</b> ${coin.name}\n$${pxf(x.usd)}  ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}% (24h)`;
+async function cmdUntrack(env, q) {
+  const f = await ghGet(env, "wallets.json");
+  const list = Array.isArray(f?.content) ? f.content : [];
+  const idx = list.findIndex((w) => w.label.toLowerCase() === q.toLowerCase() || w.addr.toLowerCase() === q.toLowerCase() || w.label.toLowerCase().includes(q.toLowerCase()));
+  if (idx < 0) return `No tracked wallet matching "${esc(q)}". /wallets to list.`;
+  const [removed] = list.splice(idx, 1);
+  const ok = await ghPut(env, "wallets.json", list, f.sha, `bot: untrack ${removed.label}`);
+  return ok ? `✅ Untracked <b>${esc(removed.label)}</b> (${list.length} left).` : "⚠️ couldn’t update wallets.json.";
 }
 
-// ---- GitHub workflow dispatch ----
+// ---- mute ----
+async function cmdMute(env, durArg, unmute = false) {
+  const f = await ghGet(env, "state/mute.json");
+  let until = null, label = "until you /unmute";
+  if (!unmute && durArg) {
+    const m = durArg.match(/^(\d+)\s*(m|h|d)$/i);
+    if (m) {
+      const mult = { m: 60, h: 3600, d: 86400 }[m[2].toLowerCase()];
+      until = Math.floor(Date.now() / 1000) + Number(m[1]) * mult;
+      label = `for ${m[1]}${m[2].toLowerCase()}`;
+    }
+  }
+  const obj = unmute ? { muted: false } : { muted: true, until };
+  const ok = await ghPut(env, "state/mute.json", obj, f?.sha, unmute ? "bot: unmute" : "bot: mute");
+  if (!ok) return "⚠️ couldn’t update mute state.";
+  return unmute ? "🔔 Wallet alerts unmuted." : `🔕 Wallet alerts muted ${label}. (Digest still runs.)`;
+}
+
+// ---- market ----
+async function cmdMarket() {
+  const r = await fetch(`${CG}/simple/price?ids=bitcoin,ethereum,solana,hyperliquid&vs_currencies=usd&include_24hr_change=true`);
+  const d = await r.json();
+  const row = (id, sym) => { const x = d[id]; if (!x) return null; const ch = num(x.usd_24h_change); return `${sym} $${pxf(x.usd)} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`; };
+  return "📊 <b>Markets</b>\n" + ["bitcoin:BTC", "ethereum:ETH", "solana:SOL", "hyperliquid:HYPE"].map((p) => row(...p.split(":"))).filter(Boolean).join("  •  ");
+}
+async function cmdHl(coin) {
+  if (!coin) return "Usage: /hl &lt;coin&gt;";
+  const mids = await allMids();
+  const key = Object.keys(mids).find((k) => k.toLowerCase() === coin.toLowerCase());
+  return key ? `⚡ <b>${esc(key)}</b> (Hyperliquid mid): $${pxf(num(mids[key]))}` : `No Hyperliquid market for "${esc(coin)}".`;
+}
+async function cmdPrice(q) {
+  if (!q) return "Usage: /price &lt;coin&gt;";
+  const s = await (await fetch(`${CG}/search?query=${encodeURIComponent(q)}`)).json();
+  const coin = (s.coins || [])[0];
+  if (!coin) return `No coin found for "${esc(q)}".`;
+  const p = await (await fetch(`${CG}/simple/price?ids=${coin.id}&vs_currencies=usd&include_24hr_change=true`)).json();
+  const x = p[coin.id]; if (!x) return `No price for ${esc(coin.id)}.`;
+  const ch = num(x.usd_24h_change);
+  return `💲 <b>${esc(coin.symbol.toUpperCase())}</b> ${esc(coin.name)}\n$${pxf(x.usd)}  ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}% (24h)`;
+}
+
+// ---- dispatch ----
 async function ghDispatch(env, workflowFile, inputs) {
   return fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${workflowFile}/dispatches`, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
-      "Accept": "application/vnd.github+json",
-      "User-Agent": "ct-bot",
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot", "Content-Type": "application/json" },
     body: JSON.stringify(inputs ? { ref: "main", inputs } : { ref: "main" }),
   });
 }
-async function dispatch(env, workflowFile, ackMsg) {
+async function dispatch(env, workflowFile, ack) {
   const r = await ghDispatch(env, workflowFile);
-  if (r.status !== 204) return `⚠️ couldn't trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
-  return ackMsg;
+  return r.status === 204 ? ack : `⚠️ couldn’t trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
 }
-async function dispatchX(env, mode, arg, ackMsg) {
+async function dispatchX(env, mode, arg, ack) {
   const r = await ghDispatch(env, "x-command.yml", { mode, arg: arg || "" });
-  if (r.status !== 204) return `⚠️ couldn't trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
-  return ackMsg;
+  return r.status === 204 ? ack : `⚠️ couldn’t trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
 }
 
 function statusText(env) {
-  return [
-    "✅ <b>CT bot online</b>",
-    "",
-    "Scheduled: digest daily 6 AM PT · wallet watch every 30 min · scorecard Sundays",
-    `Tracked wallets: ${WALLETS.map((w) => w.label).join(", ")}`,
-    "Run /help for commands.",
-  ].join("\n");
+  return ["✅ <b>CT bot online</b>", "", "Scheduled: digest 6 AM PT · wallet watch /30 min · scorecard Sundays", "Run /menu for commands."].join("\n");
 }
-
 function helpText() {
   return [
     "🤖 <b>CT Cockpit</b>",
-    "",
-    "🐋 <b>Wallets</b> (instant)",
-    "/wallets — all tracked positions + consensus",
-    "/wallet &lt;label&gt; — one wallet's book",
-    "/consensus — where wallets align",
-    "",
-    "💲 <b>Market</b> (instant)",
-    "/market — BTC/ETH/SOL/HYPE",
-    "/hl &lt;coin&gt; — Hyperliquid mid price",
-    "/price &lt;coin&gt; — any coin (CoinGecko)",
-    "",
-    "📰 <b>On-demand</b> (triggers a run)",
-    "/digest — full CT newsletter now",
-    "/scorecard — wallet scorecard now",
-    "",
-    "📱 <b>X / Twitter</b> (Apify cost per call)",
-    "/trending — what’s viral on CT now",
-    "/ticker &lt;sym&gt; — CT on a coin (e.g. /ticker hype)",
-    "/x &lt;handle&gt; — an account’s recent tweets",
-    "/calls &lt;handle&gt; — an account’s recent trade calls",
-    "/search &lt;query&gt; — search X",
-    "/discover — surface new caller accounts",
-    "",
-    "/status · /help",
-    "",
-    "<i>Coming soon: /leaderboard, /track.</i>",
+    "", "🐋 <b>Wallets</b> (instant)",
+    "/wallets · /wallet &lt;label&gt; · /consensus",
+    "/track &lt;0x&gt; [label] · /untrack &lt;label&gt;",
+    "", "💲 <b>Market</b> (instant)",
+    "/market · /hl &lt;coin&gt; · /price &lt;coin&gt;",
+    "", "📰 <b>On-demand</b> (triggers a run)",
+    "/digest · /scorecard · /leaderboard",
+    "", "📱 <b>X / Twitter</b> (Apify cost)",
+    "/trending · /ticker &lt;sym&gt; · /x &lt;handle&gt;",
+    "/calls &lt;handle&gt; · /search &lt;query&gt; · /discover",
+    "", "⚙️ /mute [30m|2h] · /unmute · /status · /menu",
   ].join("\n");
 }

@@ -1,0 +1,16 @@
+name: HL Leaderboard
+
+# Triggered by the bot's /leaderboard. Screens the leaderboard and replies to Telegram.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  leaderboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Screen leaderboard
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node leaderboard-cmd.mjs
