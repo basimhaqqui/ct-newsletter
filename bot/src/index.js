@@ -63,6 +63,7 @@ async function handle(text, chatId, env) {
       case "/market": return send(env, chatId, await cmdMarket());
       case "/hl": return send(env, chatId, await cmdHl(args[0]));
       case "/price": return send(env, chatId, await cmdPrice(args[0]));
+      case "/size": return send(env, chatId, await cmdSize(args));
       case "/status": return send(env, chatId, statusText(env));
       // watchlist edits
       case "/track": return needArg("Usage: /track &lt;0x address&gt; [label]") && send(env, chatId, await cmdTrack(env, args));
@@ -270,6 +271,37 @@ async function cmdMarket() {
   const row = (id, sym) => { const x = d[id]; if (!x) return null; const ch = num(x.usd_24h_change); return `${sym} $${pxf(x.usd)} ${ch >= 0 ? "▲" : "▼"}${Math.abs(ch).toFixed(1)}%`; };
   return "📊 <b>Markets</b>\n" + ["bitcoin:BTC", "ethereum:ETH", "solana:SOL", "hyperliquid:HYPE"].map((p) => row(...p.split(":"))).filter(Boolean).join("  •  ");
 }
+async function cmdSize(args) {
+  if (args.length < 3) return "Usage: /size &lt;coin&gt; &lt;risk$&gt; &lt;stop&gt; [entry]\nEx: <code>/size hype 500 55</code> — risk $500 with a stop at $55";
+  const coinIn = args[0].toUpperCase().replace(/^\$/, "");
+  const risk = Number(args[1]), stop = Number(args[2]);
+  if (!(risk > 0) || !(stop > 0)) return "risk and stop must be positive numbers.";
+  const mids = await allMids();
+  const key = Object.keys(mids).find((k) => k.toLowerCase() === coinIn.toLowerCase());
+  if (!key) return `No Hyperliquid market for "${esc(coinIn)}".`;
+  const entry = args[3] ? Number(args[3]) : num(mids[key]);
+  if (!(entry > 0)) return "bad entry price.";
+  const dist = Math.abs(entry - stop);
+  if (dist === 0) return "stop can’t equal entry.";
+  // ATR for context
+  let atrTxt = "";
+  try {
+    const end = Date.now();
+    const c = await (await fetch(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "candleSnapshot", req: { coin: key, interval: "1d", startTime: end - 20 * 86400e3, endTime: end } }) })).json();
+    const tr = []; for (let i = 1; i < c.length; i++) { const h = +c[i].h, l = +c[i].l, pc = +c[i - 1].c; tr.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc))); }
+    const atr = tr.slice(-14).reduce((s, v) => s + v, 0) / Math.min(14, tr.length || 1);
+    if (atr > 0) { const mult = dist / atr; atrTxt = `\nStop is ${mult.toFixed(1)}× ATR${mult < 1 ? " ⚠️ tight — easy to get wicked out" : mult > 4 ? " (wide)" : ""}`; }
+  } catch {}
+  const units = risk / dist, notional = units * entry, side = stop < entry ? "LONG" : "SHORT";
+  return [
+    `📐 <b>Size — ${esc(key)}</b> (${side})`,
+    `Entry $${pxf(entry)} · Stop $${pxf(stop)} · risk ${usd(risk)}`,
+    `Stop distance: $${pxf(dist)} (${(dist / entry * 100).toFixed(1)}%)${atrTxt}`,
+    `<b>Size: ${units < 1 ? units.toFixed(4) : units.toFixed(2)} ${esc(key)} · notional ${usd(notional)}</b>`,
+    `If stopped → −${usd(risk)} (as intended).`,
+    `<i>Sizing only — not advice.</i>`,
+  ].join("\n");
+}
 async function cmdHl(coin) {
   if (!coin) return "Usage: /hl &lt;coin&gt;";
   const mids = await allMids();
@@ -319,6 +351,7 @@ function helpText() {
     "/track &lt;0x&gt; [label] · /untrack &lt;label&gt;",
     "", "💲 <b>Market</b> (instant)",
     "/market · /hl &lt;coin&gt; · /price &lt;coin&gt;",
+    "/size &lt;coin&gt; &lt;risk$&gt; &lt;stop&gt; — position sizer",
     "", "📈 <b>Analysis</b>",
     "/ta &lt;coin&gt; — full technical read + whale confluence",
     "/smartmoney — top traders’ net positioning per coin",
