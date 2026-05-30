@@ -17,5 +17,14 @@
       "whales-long"
     ],
     "created": 1780184390
+  },
+  {
+    "id": "wyqru",
+    "coin": "HYPE",
+    "conds": [
+      "price<60",
+      "whales-long"
+    ],
+    "created": 1780184629
   }
 ]
