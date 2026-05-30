@@ -7,3 +7,10 @@ digest.html
 market.json
 *.log
 fetch.err
+
+# one-off discovery artifacts
+hl-candidates.json
+caller-candidates.json
+
+# local position baseline — the cloud workflow owns/commits this (git add -f)
+state/hl-positions.json
