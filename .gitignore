@@ -14,3 +14,7 @@ caller-candidates.json
 
 # local position baseline — the cloud workflow owns/commits this (git add -f)
 state/hl-positions.json
+
+# cloudflare worker
+bot/node_modules/
+bot/.wrangler/

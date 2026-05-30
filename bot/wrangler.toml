@@ -1,0 +1,8 @@
+name = "ct-bot"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Non-secret config. Secrets are set separately with `wrangler secret put`:
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WEBHOOK_SECRET, GITHUB_TOKEN
+[vars]
+GITHUB_REPO = "basimhaqqui/ct-newsletter"
