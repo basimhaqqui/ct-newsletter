@@ -1,0 +1,181 @@
+// Conversational agent: Haiku orchestrates tools; the technical_analysis tool
+// makes a nested Opus call for deep reads. Memory in KV (env.MEMORY).
+// Anthropic via raw fetch (Worker has no SDK; everything else here is fetch too).
+
+const ANTHROPIC = "https://api.anthropic.com/v1/messages";
+const INFO = "https://api.hyperliquid.xyz/info";
+const CG = "https://api.coingecko.com/api/v3";
+const CHAT_MODEL = "claude-haiku-4-5";
+const TA_MODEL = "claude-opus-4-8";
+
+const WALLETS_FALLBACK = [
+  { addr: "0x57f2819c959abbcf22623d5ec1d3164b213e9711", label: "jefefefe" },
+  { addr: "0x3705121529bf40d77e8e7b625120551b151d9af2", label: "0x3705…9af2" },
+  { addr: "0xdd54150be70967523a256f92db193845acf58714", label: "0xdd54…8714" },
+  { addr: "0xc914267b2b98cabf20ef904de5fbb326c982855d", label: "0xc914…855d" },
+];
+const MIN_NOTIONAL = 25000, CONSENSUS_MIN = 3;
+const num = (x) => Number(x) || 0;
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const pxf = (n) => (n >= 1000 ? Math.round(n).toLocaleString("en-US") : n >= 1 ? n.toFixed(2) : n.toPrecision(3));
+const usd = (n) => { const a = Math.abs(n), s = n < 0 ? "-" : ""; return a >= 1e6 ? `${s}$${(a / 1e6).toFixed(2)}M` : a >= 1e3 ? `${s}$${(a / 1e3).toFixed(0)}k` : `${s}$${a.toFixed(0)}`; };
+
+async function info(b) { const r = await fetch(INFO, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }); return r.json(); }
+async function ghGet(env, path) {
+  const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/contents/${path}`, { headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot" } });
+  if (!r.ok) return null;
+  const j = await r.json();
+  try { return { content: JSON.parse(atob(j.content.replace(/\n/g, ""))), sha: j.sha }; } catch { return { content: null, sha: j.sha }; }
+}
+async function ghPut(env, path, obj, sha, message) {
+  const body = { message, content: btoa(JSON.stringify(obj, null, 2) + "\n") }; if (sha) body.sha = sha;
+  const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/contents/${path}`, { method: "PUT", headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.ok;
+}
+async function getWallets(env) { const f = await ghGet(env, "wallets.json"); return Array.isArray(f?.content) && f.content.length ? f.content : WALLETS_FALLBACK; }
+async function positions(addr) {
+  const j = await info({ type: "clearinghouseState", user: addr });
+  return (j.assetPositions || []).map((p) => { const pos = p.position || {}, szi = num(pos.szi), n = num(pos.positionValue); return { coin: pos.coin, side: szi > 0 ? "LONG" : "SHORT", lev: pos.leverage?.value || 0, notional: n, entry: num(pos.entryPx), uPnl: num(pos.unrealizedPnl) }; }).filter((p) => Math.abs(p.notional) >= MIN_NOTIONAL);
+}
+async function candles(coin, interval, count) {
+  const iv = { "1h": 3600e3, "4h": 4 * 3600e3, "1d": 86400e3 }[interval], end = Date.now();
+  const c = await info({ type: "candleSnapshot", req: { coin, interval, startTime: end - iv * count, endTime: end } });
+  return { h: c.map((x) => +x.h), l: c.map((x) => +x.l), c: c.map((x) => +x.c) };
+}
+const ema = (a, p) => { const k = 2 / (p + 1); let e = a[0]; for (let i = 1; i < a.length; i++) e = a[i] * k + e * (1 - k); return e; };
+const rsi = (a, p = 14) => { let g = 0, l = 0; for (let i = a.length - p; i < a.length; i++) { const d = a[i] - a[i - 1]; if (d >= 0) g += d; else l -= d; } return 100 - 100 / (1 + g / (l || 1e-9)); };
+
+async function callClaude(env, { model, system, messages, tools, max_tokens }) {
+  const body = { model, max_tokens, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages };
+  if (tools) body.tools = tools.map((t, i) => (i === tools.length - 1 ? { ...t, cache_control: { type: "ephemeral" } } : t));
+  const r = await fetch(ANTHROPIC, { method: "POST", headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 150)}`);
+  return r.json();
+}
+
+// ---- tools ----
+const TOOLS = [
+  { name: "get_wallets", description: "Current positions of all tracked Hyperliquid whale wallets + where they reach consensus. Use for 'what are the whales doing', 'are they long X', positioning questions.", input_schema: { type: "object", properties: {} } },
+  { name: "get_coin", description: "Live price, 24h change, perp funding (annualized %), and open interest for one coin. Quick price/funding lookups.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
+  { name: "get_market", description: "Snapshot of BTC/ETH/SOL/HYPE prices + 24h change.", input_schema: { type: "object", properties: {} } },
+  { name: "technical_analysis", description: "Deep multi-timeframe technical read for a coin (trend, RSI, key levels, funding, and whether the tracked whales confirm). Use whenever the user asks for analysis, 'what's the play', an entry, levels, or whether to buy/sell. Returns a finished expert read — present it to the user as-is.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
+  { name: "position_size", description: "Risk-based position sizing. Given coin, dollar risk, stop price (and optional entry), returns units + notional.", input_schema: { type: "object", properties: { coin: { type: "string" }, risk: { type: "number" }, stop: { type: "number" }, entry: { type: "number" } }, required: ["coin", "risk", "stop"] } },
+  { name: "set_watch", description: "Create a one-shot alert that fires when ALL conditions hold (checked ~every 30 min). Conditions are strings like 'price<55', 'rsi<50', 'funding>50', 'whales-long', 'whales-short'.", input_schema: { type: "object", properties: { coin: { type: "string" }, conditions: { type: "array", items: { type: "string" } } }, required: ["coin", "conditions"] } },
+  { name: "run_job", description: "Trigger a background job; result arrives in the chat shortly. jobs: digest (full CT newsletter), scorecard (wallet performance), smartmoney (top-50 net positioning), leaderboard (top traders). Or an X scrape: set job to x|ticker|trending|search|calls|discover and pass arg.", input_schema: { type: "object", properties: { job: { type: "string" }, arg: { type: "string" } }, required: ["job"] } },
+];
+
+const allMids = () => info({ type: "allMids" });
+async function midKey(coin) { const m = await allMids(); const k = Object.keys(m).find((x) => x.toLowerCase() === coin.toLowerCase()); return k ? { key: k, price: num(m[k]) } : null; }
+async function fundingOI(coin) { const [meta, ctxs] = await info({ type: "metaAndAssetCtxs" }); const i = meta.universe.findIndex((u) => u.name.toLowerCase() === coin.toLowerCase()); if (i < 0) return null; const c = ctxs[i]; return { fundingAnnual: num(c.funding) * 24 * 365 * 100, oi: num(c.openInterest) * num(c.markPx), mark: num(c.markPx) }; }
+
+async function gatherWhaleSide(env, coin) {
+  const wallets = await getWallets(env); let long = 0, short = 0, who = [];
+  for (const w of wallets) { const pos = (await positions(w.addr)).find((p) => p.coin.toLowerCase() === coin.toLowerCase()); if (pos) { (pos.side === "LONG" ? long++ : short++); who.push(`${w.label} ${pos.side} ${pos.lev}x @ $${pxf(pos.entry)}`); } }
+  return { long, short, total: wallets.length, who };
+}
+
+async function execTool(env, name, input) {
+  if (name === "get_wallets") {
+    const wallets = await getWallets(env);
+    const all = await Promise.all(wallets.map(async (w) => ({ w, pos: await positions(w.addr) })));
+    const cons = new Map();
+    const lines = all.map(({ w, pos }) => { for (const p of pos) { const k = `${p.coin}|${p.side}`; cons.set(k, (cons.get(k) || 0) + 1); } return `${w.label}: ${pos.length ? pos.slice(0, 5).map((p) => `${p.side} ${p.lev}x ${p.coin} ${usd(p.notional)}`).join(", ") : "flat"}`; });
+    const consensus = [...cons].filter(([, n]) => n >= CONSENSUS_MIN).map(([k, n]) => { const [c, s] = k.split("|"); return `${n}/${wallets.length} ${s} ${c}`; });
+    return lines.join("\n") + (consensus.length ? "\nCONSENSUS: " + consensus.join("; ") : "");
+  }
+  if (name === "get_coin") {
+    const mk = await midKey(input.coin); if (!mk) return `No Hyperliquid market for ${input.coin}.`;
+    const f = await fundingOI(mk.key);
+    return `${mk.key}: $${pxf(mk.price)}${f ? ` · funding ${f.fundingAnnual.toFixed(0)}%/yr · OI ${usd(f.oi)}` : ""}`;
+  }
+  if (name === "get_market") {
+    const d = await (await fetch(`${CG}/simple/price?ids=bitcoin,ethereum,solana,hyperliquid&vs_currencies=usd&include_24hr_change=true`)).json();
+    return ["bitcoin:BTC", "ethereum:ETH", "solana:SOL", "hyperliquid:HYPE"].map((p) => { const [id, sym] = p.split(":"); const x = d[id]; return x ? `${sym} $${pxf(x.usd)} ${num(x.usd_24h_change) >= 0 ? "+" : ""}${num(x.usd_24h_change).toFixed(1)}%` : null; }).filter(Boolean).join(" · ");
+  }
+  if (name === "position_size") {
+    const mk = await midKey(input.coin); if (!mk) return `No market for ${input.coin}.`;
+    const entry = input.entry || mk.price, dist = Math.abs(entry - input.stop); if (!dist) return "stop can't equal entry.";
+    const units = input.risk / dist;
+    return `${mk.key} ${input.stop < entry ? "LONG" : "SHORT"}: entry $${pxf(entry)}, stop $${pxf(input.stop)}, risk ${usd(input.risk)} → size ${units < 1 ? units.toFixed(4) : units.toFixed(2)} ${mk.key} (notional ${usd(units * entry)}). Stop ${(dist / entry * 100).toFixed(1)}% away.`;
+  }
+  if (name === "set_watch") {
+    const re = /^(price(<=|>=|<|>)\d+\.?\d*|rsi(<=|>=|<|>)\d+\.?\d*|funding(<=|>=|<|>)-?\d+\.?\d*|whales-(long|short))$/;
+    const conds = (input.conditions || []).map((c) => String(c).toLowerCase());
+    const bad = conds.filter((c) => !re.test(c)); if (!conds.length || bad.length) return `Invalid conditions: ${bad.join(", ") || "none given"}. Use price<55, rsi<50, funding>50, whales-long, whales-short.`;
+    const f = await ghGet(env, "state/watches.json"); const list = Array.isArray(f?.content) ? f.content : [];
+    const id = "w" + Date.now().toString(36).slice(-4); list.push({ id, coin: input.coin.toUpperCase(), conds, created: Math.floor(Date.now() / 1000) });
+    const ok = await ghPut(env, "state/watches.json", list, f?.sha, `bot: watch ${input.coin}`);
+    return ok ? `Watch ${id} set on ${input.coin.toUpperCase()} (${conds.join(", ")}). Fires once when all hold; checked ~every 30 min.` : "Failed to save watch.";
+  }
+  if (name === "run_job") {
+    const map = { digest: ["daily.yml", {}], scorecard: ["hl-scorecard.yml", {}], smartmoney: ["smartmoney.yml", {}], leaderboard: ["leaderboard.yml", {}] };
+    let file, inputs;
+    if (map[input.job]) { [file, inputs] = map[input.job]; }
+    else if (["x", "ticker", "trending", "search", "calls", "discover"].includes(input.job)) { file = "x-command.yml"; inputs = { mode: input.job, arg: input.arg || "" }; }
+    else return `Unknown job '${input.job}'.`;
+    const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${file}/dispatches`, { method: "POST", headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot", "Content-Type": "application/json" }, body: JSON.stringify(Object.keys(inputs).length ? { ref: "main", inputs } : { ref: "main" }) });
+    return r.status === 204 ? `Triggered '${input.job}' — result will arrive in the chat shortly.` : `Couldn't trigger (${r.status}).`;
+  }
+  if (name === "technical_analysis") return technicalAnalysis(env, input.coin);
+  return `Unknown tool ${name}`;
+}
+
+// Deep tool: gather data + nested Opus call → finished read
+async function technicalAnalysis(env, coin) {
+  const mk = await midKey(coin); if (!mk) return `No Hyperliquid market for ${coin}.`;
+  const key = mk.key;
+  const d1 = await candles(key, "1d", 60), h4 = await candles(key, "4h", 80);
+  const px = d1.c[d1.c.length - 1];
+  const f = await fundingOI(key);
+  const whales = await gatherWhaleSide(env, key);
+  const data = {
+    coin: key, price: px,
+    change_24h_7d_30d: [((px / d1.c[d1.c.length - 2] - 1) * 100).toFixed(1), ((px / d1.c[d1.c.length - 8] - 1) * 100).toFixed(1), ((px / d1.c[d1.c.length - 31] - 1) * 100).toFixed(1)],
+    rsi_1d: Math.round(rsi(d1.c)), rsi_4h: Math.round(rsi(h4.c)),
+    ema20_1d: +ema(d1.c.slice(-40), 20).toFixed(3), ema50_1d: +ema(d1.c.slice(-55), 50).toFixed(3),
+    resistance: +Math.max(...d1.h.slice(-14)).toFixed(3), support: [+ema(d1.c.slice(-40), 20).toFixed(3), +Math.min(...d1.l.slice(-14)).toFixed(3)],
+    funding_annual_pct: f ? +f.fundingAnnual.toFixed(0) : null, open_interest_usd: f ? Math.round(f.oi) : null,
+    whales: `${whales.long}L/${whales.short}S of ${whales.total} (${whales.who.join("; ") || "none"})`,
+  };
+  const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). Given real Hyperliquid data for ${key}, write: one-line verdict; trend (1d/4h); momentum (RSI, flag overbought>70/oversold<30); positioning (funding healthy vs crowded + OI); whale confluence; key levels (resistance/support, use the numbers); invalidation level; one if-then scenario. Be honest and probabilistic, never fake-confident. End with "<i>Not advice · TA is probabilistic · manage risk.</i>". Output only the read — no preamble, no code fences, no meta-commentary about your reasoning. Under ~230 words.`;
+  const j = await callClaude(env, { model: TA_MODEL, system: sys, max_tokens: 1500, messages: [{ role: "user", content: "Data:\n" + JSON.stringify(data, null, 2) }] });
+  return (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+}
+
+const SYSTEM = `You are the user's personal Crypto Twitter + Hyperliquid trading cockpit, accessed via Telegram chat. You help them read the market and their tracked on-chain whale wallets, and you drive their bot's tools.
+
+Style: concise, direct, a little sharp — like a sharp trading buddy texting back. Plain text or light Telegram HTML (<b>, <i>). No long essays.
+
+Use tools to answer with REAL data — never guess prices, positions, or levels. For any analysis / "what's the play" / entry / buy-or-sell question, call technical_analysis and present its read (it's an expert Opus analysis — relay it, don't rewrite or second-guess it). For positioning questions use get_wallets. For quick prices use get_coin/get_market. For sizing use position_size. To set alerts use set_watch. To run the digest/scorecard/smartmoney/leaderboard or scrape X, use run_job.
+
+Honesty guardrails (non-negotiable): you are decision SUPPORT, not financial advice. TA is probabilistic, not prediction. Never give fake-confident "buy now" calls. The user trades manually. Remind lightly when relevant, don't lecture.`;
+
+const KV_TTL = 7200; // 2h conversation memory
+
+export async function runAgent(env, chatId, userText) {
+  if (!env.ANTHROPIC_API_KEY) return tg(env, chatId, "⚠️ Conversational mode needs ANTHROPIC_API_KEY set on the worker.");
+  let history = [];
+  try { if (env.MEMORY) history = JSON.parse((await env.MEMORY.get(`chat:${chatId}`)) || "[]"); } catch {}
+  const messages = [...history, { role: "user", content: userText }];
+  try {
+    for (let i = 0; i < 5; i++) {
+      const resp = await callClaude(env, { model: CHAT_MODEL, system: SYSTEM, tools: TOOLS, max_tokens: 1024, messages });
+      messages.push({ role: "assistant", content: resp.content });
+      if (resp.stop_reason !== "tool_use") {
+        const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim() || "…";
+        await tg(env, chatId, text);
+        const newHist = [...history, { role: "user", content: userText }, { role: "assistant", content: text }].slice(-8);
+        if (env.MEMORY) await env.MEMORY.put(`chat:${chatId}`, JSON.stringify(newHist), { expirationTtl: KV_TTL });
+        return;
+      }
+      const results = [];
+      for (const b of resp.content) if (b.type === "tool_use") { let out; try { out = await execTool(env, b.name, b.input || {}); } catch (e) { out = `tool error: ${e.message}`; } results.push({ type: "tool_result", tool_use_id: b.id, content: String(out).slice(0, 6000) }); }
+      messages.push({ role: "user", content: results });
+    }
+    await tg(env, chatId, "Hit my reasoning limit on that — try asking more directly?");
+  } catch (e) { await tg(env, chatId, `⚠️ ${esc(e.message)}`); }
+}
+
+async function tg(env, chatId, text) {
+  await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }) });
+}

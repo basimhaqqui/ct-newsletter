@@ -10,7 +10,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 const INFO = "https://api.hyperliquid.xyz/info";
 const COIN = (process.env.COIN || "HYPE").toUpperCase().replace(/^\$/, "");
 const KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
 const TG = process.env.TELEGRAM_BOT_TOKEN, CHAT = process.env.TELEGRAM_CHAT_ID;
 
 const num = (x) => Number(x) || 0;

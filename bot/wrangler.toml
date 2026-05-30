@@ -3,6 +3,11 @@ main = "src/index.js"
 compatibility_date = "2025-01-01"
 
 # Non-secret config. Secrets are set separately with `wrangler secret put`:
-#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WEBHOOK_SECRET, GITHUB_TOKEN
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WEBHOOK_SECRET, GITHUB_TOKEN, ANTHROPIC_API_KEY
 [vars]
 GITHUB_REPO = "basimhaqqui/ct-newsletter"
+
+# Conversation memory for the chat agent
+[[kv_namespaces]]
+binding = "MEMORY"
+id = "5b34f7bdff1e4853b542ca3771ab7889"

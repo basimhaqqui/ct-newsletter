@@ -1,3 +1,5 @@
+import { runAgent } from "./agent.js";
+
 // Telegram command bot on Cloudflare Workers (webhook).
 // Instant commands hit Hyperliquid/CoinGecko directly; heavy ones (digest,
 // scorecard, leaderboard, X) trigger the repo's GitHub Actions workflows.
@@ -41,8 +43,10 @@ export default {
     const chatId = msg?.chat?.id;
     const text = (msg?.text || "").trim();
     if (!chatId || String(chatId) !== String(env.TELEGRAM_CHAT_ID)) return new Response("ok");
-    if (!text.startsWith("/")) return new Response("ok");
-    ctx.waitUntil(handle(text, chatId, env));
+    if (!text) return new Response("ok");
+    // Slash commands → fast deterministic handlers. Plain English → conversational agent.
+    if (text.startsWith("/")) ctx.waitUntil(handle(text, chatId, env));
+    else ctx.waitUntil(runAgent(env, chatId, text));
     return new Response("ok");
   },
 };
