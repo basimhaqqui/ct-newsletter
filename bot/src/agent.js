@@ -177,5 +177,13 @@ export async function runAgent(env, chatId, userText) {
 }
 
 async function tg(env, chatId, text) {
-  await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }) });
+  const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+  const t = (text || "…").slice(0, 4000); // Telegram hard limit is 4096
+  const send = (body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let r = await send({ chat_id: chatId, text: t, parse_mode: "HTML", disable_web_page_preview: true });
+  if (!r.ok) {
+    // Most often a malformed-HTML 400 — resend as plain text (tags stripped) so a reply always lands.
+    r = await send({ chat_id: chatId, text: t.replace(/<[^>]+>/g, ""), disable_web_page_preview: true });
+  }
+  return r;
 }
