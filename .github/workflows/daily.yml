@@ -45,6 +45,10 @@ jobs:
           MAX_ITEMS: "200"
         run: node fetch.mjs > tweets.json
 
+      - name: Market snapshot
+        if: steps.guard.outputs.go == 'true'
+        run: node market.mjs # non-fatal by design
+
       - name: Summarize
         if: steps.guard.outputs.go == 'true'
         env:
@@ -57,3 +61,26 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: node telegram.mjs
+
+      - name: Save run inputs as artifact
+        if: always() && steps.guard.outputs.go == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-inputs-${{ github.run_id }}
+          path: |
+            tweets.json
+            market.json
+            digest.html
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Alert me on failure
+        if: failure() && steps.guard.outputs.go == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=⚠️ CT Digest run failed today. Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > /dev/null

@@ -18,11 +18,14 @@ if [ $? -ne 0 ]; then echo "fetch.mjs FAILED" >> $LOG; fi
 COUNT=$($NODE -e 'try{console.log(JSON.parse(require("fs").readFileSync("tweets.json","utf8")).count)}catch(e){console.log("ERR")}')
 echo "fetched: $COUNT tweets" >> $LOG
 
-# 2) Summarize → write digest.html (Anthropic API; needs ANTHROPIC_API_KEY in .env)
+# 2) Market snapshot (non-fatal) → market.json
+$NODE market.mjs >> $LOG 2>&1
+
+# 3) Summarize → write digest.html (Anthropic API; needs ANTHROPIC_API_KEY in .env)
 rm -f digest.html
 $NODE summarize.mjs >> $LOG 2>&1
 
-# 3) Send to Telegram
+# 4) Send to Telegram
 $NODE telegram.mjs >> $LOG 2>&1
 
 echo "===== $(date) DONE =====" >> $LOG

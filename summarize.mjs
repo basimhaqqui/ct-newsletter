@@ -18,9 +18,17 @@ if (!KEY) {
 const data = JSON.parse(await readFile(TWEETS, "utf8"));
 const tweets = data.tweets || [];
 
-// Quiet day: skip the API call entirely.
+// Optional market snapshot (written by market.mjs). Missing/empty is fine.
+let marketLine = "";
+try {
+  const m = JSON.parse(await readFile(process.env.MARKET_FILE || "market.json", "utf8"));
+  marketLine = (m.line || "").trim();
+} catch {}
+
+// Quiet day: still lead with the market line if we have one.
 if (!tweets.length) {
-  await writeFile(OUT, "🧵 <b>CT Digest</b> — quiet day, nothing notable.\n");
+  const head = marketLine ? marketLine + "\n\n" : "";
+  await writeFile(OUT, head + "🧵 <b>CT Digest</b> — quiet day, nothing notable.\n");
   console.error("0 tweets — wrote quiet-day digest, no API call.");
   process.exit(0);
 }
@@ -44,6 +52,10 @@ const res = await fetch("https://api.anthropic.com/v1/messages", {
         content:
           `Here are today's cleaned, deduped, engagement-ranked tweets ` +
           `(last ${data.window_hours || 24}h, ${tweets.length} total). ` +
+          (marketLine
+            ? `Start the digest with EXACTLY this market line verbatim as the ` +
+              `first line, then a blank line, then the TLDR:\n${marketLine}\n\n`
+            : "") +
           `Write the digest now. Output ONLY the Telegram-flavored HTML, ` +
           `no preamble, no code fences.\n\n` +
           JSON.stringify(tweets, null, 2),
