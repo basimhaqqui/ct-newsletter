@@ -19,24 +19,6 @@
     "created": 1780184390
   },
   {
-    "id": "wyqru",
-    "coin": "HYPE",
-    "conds": [
-      "price<60",
-      "whales-long"
-    ],
-    "created": 1780184629
-  },
-  {
-    "id": "w3xcp",
-    "coin": "HYPE",
-    "conds": [
-      "price<60",
-      "whales-long"
-    ],
-    "created": 1780184870
-  },
-  {
     "id": "w6xfl",
     "coin": "BTC",
     "conds": [
