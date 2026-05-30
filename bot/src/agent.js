@@ -179,11 +179,13 @@ export async function runAgent(env, chatId, userText) {
 async function tg(env, chatId, text) {
   const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
   const t = (text || "…").slice(0, 4000); // Telegram hard limit is 4096
+  // Haiku tends to emit Markdown (**bold**, *italic*) — convert to Telegram HTML so it renders.
+  const html = t.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/g, "<i>$1</i>");
   const send = (body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  let r = await send({ chat_id: chatId, text: t, parse_mode: "HTML", disable_web_page_preview: true });
+  let r = await send({ chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true });
   if (!r.ok) {
-    // Most often a malformed-HTML 400 — resend as plain text (tags stripped) so a reply always lands.
-    r = await send({ chat_id: chatId, text: t.replace(/<[^>]+>/g, ""), disable_web_page_preview: true });
+    // Malformed-HTML 400 fallback — strip tags + markdown so a reply always lands.
+    r = await send({ chat_id: chatId, text: t.replace(/<[^>]+>/g, "").replace(/\*\*/g, ""), disable_web_page_preview: true });
   }
   return r;
 }
