@@ -1,0 +1,31 @@
+name: X Command
+
+# Triggered by the Telegram bot for X/Twitter commands. Scrapes via Apify and
+# replies to Telegram. MODE = x|ticker|search|trending|calls|discover.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "x | ticker | search | trending | calls | discover"
+        required: true
+        type: string
+      arg:
+        description: "handle / symbol / query (blank for trending & discover)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  x:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run X command
+        env:
+          MODE: ${{ inputs.mode }}
+          ARG: ${{ inputs.arg }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node x-command.mjs

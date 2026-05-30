@@ -52,10 +52,13 @@ export default {
 async function handle(text, chatId, env) {
   const [raw, ...args] = text.split(/\s+/);
   const cmd = raw.split("@")[0].toLowerCase(); // strip /cmd@botname
+  const argStr = args.join(" ").trim();
+  const needArg = (usage) => { if (!argStr) { send(env, chatId, usage); return false; } return true; };
   try {
     switch (cmd) {
       case "/start":
       case "/help": return send(env, chatId, helpText());
+      // instant (free, direct API)
       case "/wallets": return send(env, chatId, await cmdWallets());
       case "/wallet": return send(env, chatId, await cmdWallet(args[0]));
       case "/consensus": return send(env, chatId, await cmdConsensus());
@@ -63,8 +66,16 @@ async function handle(text, chatId, env) {
       case "/hl": return send(env, chatId, await cmdHl(args[0]));
       case "/price": return send(env, chatId, await cmdPrice(args[0]));
       case "/status": return send(env, chatId, statusText(env));
+      // dispatched runs
       case "/digest": return send(env, chatId, await dispatch(env, "daily.yml", "📰 Running the full digest — it’ll arrive shortly."));
       case "/scorecard": return send(env, chatId, await dispatch(env, "hl-scorecard.yml", "📊 Running the wallet scorecard — arriving shortly."));
+      // X / Twitter (Apify cost — each hits the scraper)
+      case "/x": return needArg("Usage: /x &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "x", argStr, `📱 Fetching @${argStr.replace(/^@/, "")}…`));
+      case "/ticker": return needArg("Usage: /ticker &lt;symbol&gt;") && send(env, chatId, await dispatchX(env, "ticker", argStr, `📱 Scanning CT for $${argStr.replace(/^\$/, "").toUpperCase()}…`));
+      case "/search": return needArg("Usage: /search &lt;query&gt;") && send(env, chatId, await dispatchX(env, "search", argStr, `🔎 Searching X for “${argStr}”…`));
+      case "/calls": return needArg("Usage: /calls &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "calls", argStr, `🎯 Finding @${argStr.replace(/^@/, "")}’s recent calls…`));
+      case "/trending": return send(env, chatId, await dispatchX(env, "trending", "", "🔥 Pulling CT trending…"));
+      case "/discover": return send(env, chatId, await dispatchX(env, "discover", "", "🔭 Discovering caller candidates…"));
       default: return send(env, chatId, `Unknown command ${cmd}. Try /help`);
     }
   } catch (e) {
@@ -171,8 +182,8 @@ async function cmdPrice(q) {
 }
 
 // ---- GitHub workflow dispatch ----
-async function dispatch(env, workflowFile, ackMsg) {
-  const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${workflowFile}/dispatches`, {
+async function ghDispatch(env, workflowFile, inputs) {
+  return fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${workflowFile}/dispatches`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
@@ -180,8 +191,16 @@ async function dispatch(env, workflowFile, ackMsg) {
       "User-Agent": "ct-bot",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ ref: "main" }),
+    body: JSON.stringify(inputs ? { ref: "main", inputs } : { ref: "main" }),
   });
+}
+async function dispatch(env, workflowFile, ackMsg) {
+  const r = await ghDispatch(env, workflowFile);
+  if (r.status !== 204) return `⚠️ couldn't trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
+  return ackMsg;
+}
+async function dispatchX(env, mode, arg, ackMsg) {
+  const r = await ghDispatch(env, "x-command.yml", { mode, arg: arg || "" });
   if (r.status !== 204) return `⚠️ couldn't trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
   return ackMsg;
 }
@@ -214,8 +233,16 @@ function helpText() {
     "/digest — full CT newsletter now",
     "/scorecard — wallet scorecard now",
     "",
+    "📱 <b>X / Twitter</b> (Apify cost per call)",
+    "/trending — what’s viral on CT now",
+    "/ticker &lt;sym&gt; — CT on a coin (e.g. /ticker hype)",
+    "/x &lt;handle&gt; — an account’s recent tweets",
+    "/calls &lt;handle&gt; — an account’s recent trade calls",
+    "/search &lt;query&gt; — search X",
+    "/discover — surface new caller accounts",
+    "",
     "/status · /help",
     "",
-    "<i>Coming soon: /leaderboard, /track, and X commands (/x, /ticker, /trending, /search).</i>",
+    "<i>Coming soon: /leaderboard, /track.</i>",
   ].join("\n");
 }
