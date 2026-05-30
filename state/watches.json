@@ -35,5 +35,14 @@
       "whales-long"
     ],
     "created": 1780184870
+  },
+  {
+    "id": "w6xfl",
+    "coin": "BTC",
+    "conds": [
+      "price<60000",
+      "whales-long"
+    ],
+    "created": 1780185010
   }
 ]
