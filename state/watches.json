@@ -26,5 +26,14 @@
       "whales-long"
     ],
     "created": 1780185010
+  },
+  {
+    "id": "w8nwf",
+    "coin": "HYPE",
+    "conds": [
+      "price<60",
+      "whales-long"
+    ],
+    "created": 1780185091
   }
 ]
