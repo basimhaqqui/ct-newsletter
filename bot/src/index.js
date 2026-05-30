@@ -74,6 +74,7 @@ async function handle(text, chatId, env) {
       case "/digest": return send(env, chatId, await dispatch(env, "daily.yml", "📰 Running the full digest — it’ll arrive shortly."));
       case "/scorecard": return send(env, chatId, await dispatch(env, "hl-scorecard.yml", "📊 Running the wallet scorecard — arriving shortly."));
       case "/leaderboard": return send(env, chatId, await dispatch(env, "leaderboard.yml", "🏆 Screening the HL leaderboard — top traders arriving shortly."));
+      case "/ta": return needArg("Usage: /ta &lt;coin&gt; (e.g. /ta hype)") && send(env, chatId, await dispatchTa(env, argStr));
       // X / Twitter (Apify cost)
       case "/x": return needArg("Usage: /x &lt;handle&gt;") && send(env, chatId, await dispatchX(env, "x", argStr, `📱 Fetching @${esc(argStr.replace(/^@/, ""))}…`));
       case "/ticker": return needArg("Usage: /ticker &lt;symbol&gt;") && send(env, chatId, await dispatchX(env, "ticker", argStr, `📱 Scanning CT for $${esc(argStr.replace(/^\$/, "").toUpperCase())}…`));
@@ -262,6 +263,10 @@ async function dispatchX(env, mode, arg, ack) {
   const r = await ghDispatch(env, "x-command.yml", { mode, arg: arg || "" });
   return r.status === 204 ? ack : `⚠️ couldn’t trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
 }
+async function dispatchTa(env, coin) {
+  const r = await ghDispatch(env, "ta.yml", { coin });
+  return r.status === 204 ? `📈 Running TA on ${esc(coin.toUpperCase())} — arriving shortly.` : `⚠️ couldn’t trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
+}
 
 function statusText(env) {
   return ["✅ <b>CT bot online</b>", "", "Scheduled: digest 6 AM PT · wallet watch /30 min · scorecard Sundays", "Run /menu for commands."].join("\n");
@@ -274,6 +279,8 @@ function helpText() {
     "/track &lt;0x&gt; [label] · /untrack &lt;label&gt;",
     "", "💲 <b>Market</b> (instant)",
     "/market · /hl &lt;coin&gt; · /price &lt;coin&gt;",
+    "", "📈 <b>Analysis</b>",
+    "/ta &lt;coin&gt; — full technical read + whale confluence",
     "", "📰 <b>On-demand</b> (triggers a run)",
     "/digest · /scorecard · /leaderboard",
     "", "📱 <b>X / Twitter</b> (Apify cost)",
