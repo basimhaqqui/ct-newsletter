@@ -57,7 +57,7 @@ async function positions(addr) {
 async function candles(coin, interval, count) {
   const iv = { "15m": 9e5, "1h": 3600e3, "4h": 4 * 3600e3, "1d": 86400e3 }[interval], end = Date.now();
   const c = await info({ type: "candleSnapshot", req: { coin, interval, startTime: end - iv * count, endTime: end } });
-  return { h: c.map((x) => +x.h), l: c.map((x) => +x.l), c: c.map((x) => +x.c) };
+  return { o: c.map((x) => +x.o), h: c.map((x) => +x.h), l: c.map((x) => +x.l), c: c.map((x) => +x.c), t: c.map((x) => +x.t) };
 }
 const ema = (a, p) => { const k = 2 / (p + 1); let e = a[0]; for (let i = 1; i < a.length; i++) e = a[i] * k + e * (1 - k); return e; };
 const rsi = (a, p = 14) => { let g = 0, l = 0; for (let i = a.length - p; i < a.length; i++) { const d = a[i] - a[i - 1]; if (d >= 0) g += d; else l -= d; } return 100 - 100 / (1 + g / (l || 1e-9)); };
@@ -200,7 +200,7 @@ async function technicalAnalysis(env, chatId, coin) {
   const mk = await midKey(coin); if (!mk) return `No Hyperliquid market for ${coin}.`;
   await typing(env, chatId); // deep read is the slow step (~10s Opus call) — keep the indicator alive
   const key = mk.key;
-  const d1 = await candles(key, "1d", 60), h4 = await candles(key, "4h", 80), intra = await candles(key, "15m", 96);
+  const d1 = await candles(key, "1d", 60), h4 = await candles(key, "4h", 80);
   const px = d1.c[d1.c.length - 1];
   const f = await fundingOI(key);
   const whales = await gatherWhaleSide(env, key);
@@ -213,9 +213,10 @@ async function technicalAnalysis(env, chatId, coin) {
     funding_annual_pct: f ? +f.fundingAnnual.toFixed(0) : null, open_interest_usd: f ? Math.round(f.oi) : null,
     whales: `${whales.long}L/${whales.short}S of ${whales.total} (${whales.who.join("; ") || "none"})`,
   };
-  // Send the X-style price chart first (snapshot + tap-to-open live HL chart), then the read.
-  const ch1d = (intra.c[intra.c.length - 1] / intra.c[0] - 1) * 100;
-  await sendPhoto(env, chatId, taChartUrl(key, intra.c), `${key} · $${pxf(px)}  ${ch1d >= 0 ? "▲" : "▼"}${Math.abs(ch1d).toFixed(2)}% · 1D`, `https://app.hyperliquid.xyz/trade/${key}`);
+  // Send the candlestick chart first (snapshot + tap-to-open live HL chart), then the read.
+  const ohlc = d1.t.map((t, i) => ({ x: t, o: d1.o[i], h: d1.h[i], l: d1.l[i], c: d1.c[i] })).slice(-50);
+  const ch1d = (d1.c[d1.c.length - 1] / d1.c[d1.c.length - 2] - 1) * 100;
+  await sendPhoto(env, chatId, taChartUrl(key, ohlc, data.resistance, data.support[1], data.ema20_1d), `${key} · $${pxf(px)}  ${ch1d >= 0 ? "▲" : "▼"}${Math.abs(ch1d).toFixed(2)}% · 24h`, `https://app.hyperliquid.xyz/trade/${key}`);
   const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). Given real Hyperliquid data for ${key}, write: one-line verdict; trend (1d/4h); momentum (RSI, flag overbought>70/oversold<30); positioning (funding healthy vs crowded + OI); whale confluence; key levels (resistance/support, use the numbers); invalidation level; one if-then scenario. Be honest and probabilistic, never fake-confident. End with "<i>Not advice · TA is probabilistic · manage risk.</i>". Output only the read — no preamble, no code fences, no meta-commentary about your reasoning. Under ~230 words.`;
   const j = await callClaude(env, { model: TA_MODEL, system: sys, max_tokens: 1500, messages: [{ role: "user", content: "Data:\n" + JSON.stringify(data, null, 2) }] });
   return (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
@@ -271,20 +272,18 @@ export async function runAgent(env, chatId, userText) {
 }
 
 // Build a QuickChart price-line image (price + resistance/support/EMA levels).
-// X-style: clean dark area chart, green if up / red if down, dashed baseline at open.
-function taChartUrl(coin, closes) {
-  const c = closes.map((n) => +n.toFixed(5));
-  const up = c[c.length - 1] >= c[0], line = up ? "#22c55e" : "#ef4444", fill = up ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.18)";
+// Proper candlestick chart with support/resistance/EMA levels marked (Chart.js v4).
+function taChartUrl(coin, ohlc, R, S, ema) {
+  const ln = (v, col, dash, txt, pos) => ({ type: "line", yMin: v, yMax: v, borderColor: col, borderWidth: 1.5, borderDash: dash, label: { display: true, content: txt, position: pos, backgroundColor: col, color: "#fff", font: { size: 10 } } });
   const cfg = {
-    type: "line",
-    data: { labels: c.map(() => ""), datasets: [
-      { data: c, borderColor: line, backgroundColor: fill, fill: true, pointRadius: 0, borderWidth: 2.5, lineTension: 0.3 },
-      { data: c.map(() => c[0]), borderColor: "rgba(255,255,255,0.25)", borderDash: [6, 5], fill: false, pointRadius: 0, borderWidth: 1 },
-    ] },
-    options: { legend: { display: false }, title: { display: false }, layout: { padding: 8 },
-      scales: { xAxes: [{ display: false, gridLines: { display: false } }], yAxes: [{ display: false, gridLines: { display: false } }] } },
+    type: "candlestick",
+    data: { datasets: [{ label: coin, data: ohlc, color: { up: "#26a69a", down: "#ef5350", unchanged: "#888" }, borderColor: { up: "#26a69a", down: "#ef5350", unchanged: "#888" } }] },
+    options: { plugins: { legend: { display: false }, title: { display: true, text: `${coin} · Daily`, color: "#d1d5db", font: { size: 16 } },
+      annotation: { annotations: { r: ln(R, "#ef4444", [6, 4], `R ${+R.toFixed(2)}`, "start"), s: ln(S, "#22c55e", [6, 4], `S ${+S.toFixed(2)}`, "start"), e: ln(ema, "#f59e0b", [3, 3], "EMA20", "end") } } },
+      scales: { x: { type: "time", time: { unit: "day" }, ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: "rgba(255,255,255,0.06)" } },
+        y: { position: "right", ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,0.06)" } } } },
   };
-  return "https://quickchart.io/chart?w=720&h=380&bkg=" + encodeURIComponent("#0b0e11") + "&c=" + encodeURIComponent(JSON.stringify(cfg));
+  return "https://quickchart.io/chart?v=4&w=800&h=450&bkg=" + encodeURIComponent("#0d1117") + "&c=" + encodeURIComponent(JSON.stringify(cfg));
 }
 async function sendPhoto(env, chatId, photoUrl, caption, liveUrl) {
   const body = { chat_id: chatId, photo: photoUrl, caption };

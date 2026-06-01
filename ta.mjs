@@ -33,15 +33,15 @@ async function sendPhoto(url, caption, liveUrl) {
   if (liveUrl) body.reply_markup = { inline_keyboard: [[{ text: "📊 Open live chart", url: liveUrl }]] };
   try { await fetch(`https://api.telegram.org/bot${TG}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); } catch {}
 }
-function taChartUrl(coin, closes) {
-  const c = closes.map((n) => +n.toFixed(5));
-  const up = c[c.length - 1] >= c[0], line = up ? "#22c55e" : "#ef4444", fill = up ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.18)";
-  const cfg = { type: "line", data: { labels: c.map(() => ""), datasets: [
-    { data: c, borderColor: line, backgroundColor: fill, fill: true, pointRadius: 0, borderWidth: 2.5, lineTension: 0.3 },
-    { data: c.map(() => c[0]), borderColor: "rgba(255,255,255,0.25)", borderDash: [6, 5], fill: false, pointRadius: 0, borderWidth: 1 }] },
-    options: { legend: { display: false }, title: { display: false }, layout: { padding: 8 },
-      scales: { xAxes: [{ display: false, gridLines: { display: false } }], yAxes: [{ display: false, gridLines: { display: false } }] } } };
-  return "https://quickchart.io/chart?w=720&h=380&bkg=" + encodeURIComponent("#0b0e11") + "&c=" + encodeURIComponent(JSON.stringify(cfg));
+function taChartUrl(coin, ohlc, R, S, ema) {
+  const ln = (v, col, dash, txt, pos) => ({ type: "line", yMin: v, yMax: v, borderColor: col, borderWidth: 1.5, borderDash: dash, label: { display: true, content: txt, position: pos, backgroundColor: col, color: "#fff", font: { size: 10 } } });
+  const cfg = { type: "candlestick",
+    data: { datasets: [{ label: coin, data: ohlc, color: { up: "#26a69a", down: "#ef5350", unchanged: "#888" }, borderColor: { up: "#26a69a", down: "#ef5350", unchanged: "#888" } }] },
+    options: { plugins: { legend: { display: false }, title: { display: true, text: `${coin} · Daily`, color: "#d1d5db", font: { size: 16 } },
+      annotation: { annotations: { r: ln(R, "#ef4444", [6, 4], `R ${+R.toFixed(2)}`, "start"), s: ln(S, "#22c55e", [6, 4], `S ${+S.toFixed(2)}`, "start"), e: ln(ema, "#f59e0b", [3, 3], "EMA20", "end") } } },
+      scales: { x: { type: "time", time: { unit: "day" }, ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: "rgba(255,255,255,0.06)" } },
+        y: { position: "right", ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,0.06)" } } } } };
+  return "https://quickchart.io/chart?v=4&w=800&h=450&bkg=" + encodeURIComponent("#0d1117") + "&c=" + encodeURIComponent(JSON.stringify(cfg));
 }
 
 // indicators
@@ -54,7 +54,7 @@ const IV = { "15m": 9e5, "1h": 3600e3, "4h": 4 * 3600e3, "1d": 86400e3 };
 async function candles(interval, count) {
   const end = Date.now(), start = end - IV[interval] * count;
   const c = await info({ type: "candleSnapshot", req: { coin: COIN, interval, startTime: start, endTime: end } });
-  return { o: c.map((x) => +x.o), h: c.map((x) => +x.h), l: c.map((x) => +x.l), c: c.map((x) => +x.c), v: c.map((x) => +x.v) };
+  return { o: c.map((x) => +x.o), h: c.map((x) => +x.h), l: c.map((x) => +x.l), c: c.map((x) => +x.c), v: c.map((x) => +x.v), t: c.map((x) => +x.t) };
 }
 function tfRead(d) {
   if (d.c.length < 30) return null;
@@ -65,7 +65,7 @@ function tfRead(d) {
 try {
   if (!KEY) throw new Error("missing ANTHROPIC_API_KEY");
   // multi-timeframe
-  const d1 = await candles("1d", 75), h4 = await candles("4h", 120), h1 = await candles("1h", 120), intra = await candles("15m", 96);
+  const d1 = await candles("1d", 75), h4 = await candles("4h", 120), h1 = await candles("1h", 120);
   const px = d1.c[d1.c.length - 1];
   const m = macd(d1.c), a = atr(d1.h, d1.l, d1.c);
   const hi30 = Math.max(...d1.h.slice(-30)), lo30 = Math.min(...d1.l.slice(-30));
@@ -102,9 +102,10 @@ try {
     whales,
   };
 
-  // X-style chart first (snapshot + tap-to-open live HL chart)
-  const ch1d = (intra.c[intra.c.length - 1] / intra.c[0] - 1) * 100;
-  await sendPhoto(taChartUrl(COIN, intra.c), `${COIN} · $${pxf(px)}  ${ch1d >= 0 ? "▲" : "▼"}${Math.abs(ch1d).toFixed(2)}% · 1D`, `https://app.hyperliquid.xyz/trade/${COIN}`);
+  // candlestick chart first (snapshot + tap-to-open live HL chart)
+  const ohlc = d1.t.map((t, i) => ({ x: t, o: d1.o[i], h: d1.h[i], l: d1.l[i], c: d1.c[i] })).slice(-50);
+  const ch1d = (d1.c[d1.c.length - 1] / d1.c[d1.c.length - 2] - 1) * 100;
+  await sendPhoto(taChartUrl(COIN, ohlc, hi14, lo14, +tfRead(d1).e20), `${COIN} · $${pxf(px)}  ${ch1d >= 0 ? "▲" : "▼"}${Math.abs(ch1d).toFixed(2)}% · 24h`, `https://app.hyperliquid.xyz/trade/${COIN}`);
 
   const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). You are given real Hyperliquid data for ${COIN}: multi-timeframe trend/RSI, MACD, ATR, support/resistance, perp funding & open interest, and how many of the user's TRACKED PROVEN WALLETS hold this coin and which side.
 
