@@ -48,9 +48,22 @@ const rsi = (a, p = 14) => { let g = 0, l = 0; for (let i = a.length - p; i < a.
 async function callClaude(env, { model, system, messages, tools, max_tokens }) {
   const body = { model, max_tokens, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages };
   if (tools) body.tools = tools.map((t, i) => (i === tools.length - 1 ? { ...t, cache_control: { type: "ephemeral" } } : t));
-  const r = await fetch(ANTHROPIC, { method: "POST", headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 150)}`);
-  return r.json();
+  const h = { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" };
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const r = await fetch(ANTHROPIC, { method: "POST", headers: h, body: JSON.stringify(body) });
+    if (r.ok) return r.json();
+    // Retry transient rate-limit (429) / overloaded (529) with backoff; respect retry-after.
+    if ((r.status === 429 || r.status === 529) && attempt < 3) {
+      const ra = Number(r.headers.get("retry-after"));
+      const wait = Math.min((ra || 2 ** (attempt + 1)), 12) * 1000;
+      await new Promise((res) => setTimeout(res, wait));
+      continue;
+    }
+    const txt = (await r.text()).slice(0, 150);
+    const err = new Error(`Anthropic ${r.status}: ${txt}`);
+    err.status = r.status;
+    throw err;
+  }
 }
 
 // ---- tools ----
@@ -74,7 +87,7 @@ async function gatherWhaleSide(env, coin) {
   return { long, short, total: wallets.length, who };
 }
 
-async function execTool(env, name, input) {
+async function execTool(env, chatId, name, input) {
   if (name === "get_wallets") {
     const wallets = await getWallets(env);
     const all = await Promise.all(wallets.map(async (w) => ({ w, pos: await positions(w.addr) })));
@@ -116,13 +129,14 @@ async function execTool(env, name, input) {
     const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${file}/dispatches`, { method: "POST", headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot", "Content-Type": "application/json" }, body: JSON.stringify(Object.keys(inputs).length ? { ref: "main", inputs } : { ref: "main" }) });
     return r.status === 204 ? `Triggered '${input.job}' — result will arrive in the chat shortly.` : `Couldn't trigger (${r.status}).`;
   }
-  if (name === "technical_analysis") return technicalAnalysis(env, input.coin);
+  if (name === "technical_analysis") return technicalAnalysis(env, chatId, input.coin);
   return `Unknown tool ${name}`;
 }
 
 // Deep tool: gather data + nested Opus call → finished read
-async function technicalAnalysis(env, coin) {
+async function technicalAnalysis(env, chatId, coin) {
   const mk = await midKey(coin); if (!mk) return `No Hyperliquid market for ${coin}.`;
+  await typing(env, chatId); // deep read is the slow step (~10s Opus call) — keep the indicator alive
   const key = mk.key;
   const d1 = await candles(key, "1d", 60), h4 = await candles(key, "4h", 80);
   const px = d1.c[d1.c.length - 1];
@@ -158,7 +172,9 @@ export async function runAgent(env, chatId, userText) {
   try { if (env.MEMORY) history = JSON.parse((await env.MEMORY.get(`chat:${chatId}`)) || "[]"); } catch {}
   const messages = [...history, { role: "user", content: userText }];
   try {
+    await typing(env, chatId); // immediate "got it, working…" signal
     for (let i = 0; i < 5; i++) {
+      await typing(env, chatId);
       const resp = await callClaude(env, { model: CHAT_MODEL, system: SYSTEM, tools: TOOLS, max_tokens: 1024, messages });
       messages.push({ role: "assistant", content: resp.content });
       if (resp.stop_reason !== "tool_use") {
@@ -169,11 +185,22 @@ export async function runAgent(env, chatId, userText) {
         return;
       }
       const results = [];
-      for (const b of resp.content) if (b.type === "tool_use") { let out; try { out = await execTool(env, b.name, b.input || {}); } catch (e) { out = `tool error: ${e.message}`; } results.push({ type: "tool_result", tool_use_id: b.id, content: String(out).slice(0, 6000) }); }
+      await typing(env, chatId); // tools (esp. the Opus deep-analysis) can take several seconds
+      for (const b of resp.content) if (b.type === "tool_use") { let out; try { out = await execTool(env, chatId, b.name, b.input || {}); } catch (e) { out = `tool error: ${e.message}`; } results.push({ type: "tool_result", tool_use_id: b.id, content: String(out).slice(0, 6000) }); }
       messages.push({ role: "user", content: results });
     }
     await tg(env, chatId, "Hit my reasoning limit on that — try asking more directly?");
-  } catch (e) { await tg(env, chatId, `⚠️ ${esc(e.message)}`); }
+  } catch (e) {
+    const msg = (e.status === 429 || e.status === 529 || /rate.?limit|overloaded/i.test(e.message))
+      ? "⏳ Rate-limited (a lot of requests in a short window). Give it ~30s and resend — or send one message at a time."
+      : `⚠️ Something went wrong: ${esc((e.message || "").slice(0, 160))}`;
+    await tg(env, chatId, msg);
+  }
+}
+
+// Native "Bot is typing…" indicator — re-fire periodically (it fades after ~5s).
+async function typing(env, chatId) {
+  try { await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendChatAction`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chatId, action: "typing" }) }); } catch {}
 }
 
 async function tg(env, chatId, text) {
