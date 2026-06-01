@@ -213,10 +213,6 @@ async function technicalAnalysis(env, chatId, coin) {
     funding_annual_pct: f ? +f.fundingAnnual.toFixed(0) : null, open_interest_usd: f ? Math.round(f.oi) : null,
     whales: `${whales.long}L/${whales.short}S of ${whales.total} (${whales.who.join("; ") || "none"})`,
   };
-  // Send the candlestick chart first (snapshot + tap-to-open live HL chart), then the read.
-  const ohlc = d1.t.map((t, i) => ({ x: t, o: d1.o[i], h: d1.h[i], l: d1.l[i], c: d1.c[i] })).slice(-50);
-  const ch1d = (d1.c[d1.c.length - 1] / d1.c[d1.c.length - 2] - 1) * 100;
-  await sendPhoto(env, chatId, taChartUrl(key, ohlc, data.resistance, data.support[1], data.ema20_1d), `${key} · $${pxf(px)}  ${ch1d >= 0 ? "▲" : "▼"}${Math.abs(ch1d).toFixed(2)}% · 24h`, `https://app.hyperliquid.xyz/trade/${key}`);
   const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). Given real Hyperliquid data for ${key}, write: one-line verdict; trend (1d/4h); momentum (RSI, flag overbought>70/oversold<30); positioning (funding healthy vs crowded + OI); whale confluence; key levels (resistance/support, use the numbers); invalidation level; one if-then scenario. Be honest and probabilistic, never fake-confident. End with "<i>Not advice · TA is probabilistic · manage risk.</i>". Output only the read — no preamble, no code fences, no meta-commentary about your reasoning. Under ~230 words.`;
   const j = await callClaude(env, { model: TA_MODEL, system: sys, max_tokens: 1500, messages: [{ role: "user", content: "Data:\n" + JSON.stringify(data, null, 2) }] });
   return (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
@@ -272,25 +268,6 @@ export async function runAgent(env, chatId, userText) {
 }
 
 // Build a QuickChart price-line image (price + resistance/support/EMA levels).
-// Proper candlestick chart with support/resistance/EMA levels marked (Chart.js v4).
-function taChartUrl(coin, ohlc, R, S, ema) {
-  const ln = (v, col, dash, txt, pos) => ({ type: "line", yMin: v, yMax: v, borderColor: col, borderWidth: 1.5, borderDash: dash, label: { display: true, content: txt, position: pos, backgroundColor: col, color: "#fff", font: { size: 10 } } });
-  const cfg = {
-    type: "candlestick",
-    data: { datasets: [{ label: coin, data: ohlc, color: { up: "#26a69a", down: "#ef5350", unchanged: "#888" }, borderColor: { up: "#26a69a", down: "#ef5350", unchanged: "#888" } }] },
-    options: { plugins: { legend: { display: false }, title: { display: true, text: `${coin} · Daily`, color: "#d1d5db", font: { size: 16 } },
-      annotation: { annotations: { r: ln(R, "#ef4444", [6, 4], `R ${+R.toFixed(2)}`, "start"), s: ln(S, "#22c55e", [6, 4], `S ${+S.toFixed(2)}`, "start"), e: ln(ema, "#f59e0b", [3, 3], "EMA20", "end") } } },
-      scales: { x: { type: "time", time: { unit: "day" }, ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: "rgba(255,255,255,0.06)" } },
-        y: { position: "right", ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,0.06)" } } } },
-  };
-  return "https://quickchart.io/chart?v=4&w=800&h=450&bkg=" + encodeURIComponent("#0d1117") + "&c=" + encodeURIComponent(JSON.stringify(cfg));
-}
-async function sendPhoto(env, chatId, photoUrl, caption, liveUrl) {
-  const body = { chat_id: chatId, photo: photoUrl, caption };
-  if (liveUrl) body.reply_markup = { inline_keyboard: [[{ text: "📊 Open live chart", url: liveUrl }]] };
-  try { await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); } catch {}
-}
-
 // Native "Bot is typing…" indicator — re-fire periodically (it fades after ~5s).
 async function typing(env, chatId) {
   try { await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendChatAction`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chatId, action: "typing" }) }); } catch {}
