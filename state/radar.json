@@ -1,12 +1,12 @@
 {
   "baseline": {
     "CARDS": 2,
-    "TROLL": 2,
+    "TROLL": 1.6,
     "PERCOLATOR": 1,
-    "BTC": 2,
-    "ETH": 1,
+    "BTC": 2.8,
+    "ETH": 1.4,
     "PORTAL": 1,
-    "APE": 3,
+    "APE": 3.4,
     "MAPE": 1,
     "MPEP": 1,
     "MDAO": 1,
@@ -15,10 +15,17 @@
     "HYPE": 2,
     "LUNC": 1,
     "FET": 1,
-    "XRP": 1,
+    "XRP": 1.4,
     "XLM": 1,
-    "DOGE": 1
+    "DOGE": 1,
+    "AMERICA": 1,
+    "SOL": 1,
+    "LINK": 1,
+    "HBAR": 1,
+    "AVAX": 1,
+    "LTC": 1,
+    "QUIP": 1
   },
   "alerted": {},
-  "updatedAt": 1780305956
+  "updatedAt": 1780309901
 }
