@@ -61,7 +61,7 @@ const TOOLS = [
   { name: "technical_analysis", description: "Deep multi-timeframe technical read for a coin (trend, RSI, key levels, funding, and whether the tracked whales confirm). Use whenever the user asks for analysis, 'what's the play', an entry, levels, or whether to buy/sell. Returns a finished expert read — present it to the user as-is.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
   { name: "position_size", description: "Risk-based position sizing. Given coin, dollar risk, stop price (and optional entry), returns units + notional.", input_schema: { type: "object", properties: { coin: { type: "string" }, risk: { type: "number" }, stop: { type: "number" }, entry: { type: "number" } }, required: ["coin", "risk", "stop"] } },
   { name: "set_watch", description: "Create a one-shot alert that fires when ALL conditions hold (checked ~every 30 min). Conditions are strings like 'price<55', 'rsi<50', 'funding>50', 'whales-long', 'whales-short'.", input_schema: { type: "object", properties: { coin: { type: "string" }, conditions: { type: "array", items: { type: "string" } } }, required: ["coin", "conditions"] } },
-  { name: "run_job", description: "Trigger a background job; result arrives in the chat shortly. jobs: digest (full CT newsletter), scorecard (wallet performance), smartmoney (top-50 net positioning), leaderboard (top traders). Or an X scrape: set job to x|ticker|trending|search|calls|discover and pass arg.", input_schema: { type: "object", properties: { job: { type: "string" }, arg: { type: "string" } }, required: ["job"] } },
+  { name: "run_job", description: "Trigger a background job; result arrives in the chat shortly. jobs: digest (full CT newsletter), scorecard (wallet performance), smartmoney (top-50 net positioning), leaderboard (top traders), radar (scan CT for new coins heating up). Or an X scrape: set job to x|ticker|trending|search|calls|discover and pass arg.", input_schema: { type: "object", properties: { job: { type: "string" }, arg: { type: "string" } }, required: ["job"] } },
 ];
 
 const allMids = () => info({ type: "allMids" });
@@ -108,7 +108,7 @@ async function execTool(env, name, input) {
     return ok ? `Watch ${id} set on ${input.coin.toUpperCase()} (${conds.join(", ")}). Fires once when all hold; checked ~every 30 min.` : "Failed to save watch.";
   }
   if (name === "run_job") {
-    const map = { digest: ["daily.yml", {}], scorecard: ["hl-scorecard.yml", {}], smartmoney: ["smartmoney.yml", {}], leaderboard: ["leaderboard.yml", {}] };
+    const map = { digest: ["daily.yml", {}], scorecard: ["hl-scorecard.yml", {}], smartmoney: ["smartmoney.yml", {}], leaderboard: ["leaderboard.yml", {}], radar: ["radar.yml", {}] };
     let file, inputs;
     if (map[input.job]) { [file, inputs] = map[input.job]; }
     else if (["x", "ticker", "trending", "search", "calls", "discover"].includes(input.job)) { file = "x-command.yml"; inputs = { mode: input.job, arg: input.arg || "" }; }

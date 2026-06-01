@@ -1,0 +1,36 @@
+name: Trending Coin Radar
+
+# Scans CT every 6h for coins spiking in viral mentions; alerts on new movers.
+# Each run is one Apify call — tighten to */4 or */3 for faster catch (more cost),
+# or loosen to */8 to save. Also runnable on demand via the bot's /radar.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan CT for new movers
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node radar.mjs
+      - name: Persist radar baseline
+        run: |
+          git add -f state/radar.json
+          if git diff --cached --quiet; then
+            echo "no change"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "radar: baseline update [skip ci]"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push
+          fi

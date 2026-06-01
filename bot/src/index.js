@@ -81,6 +81,7 @@ async function handle(text, chatId, env) {
       case "/leaderboard": return send(env, chatId, await dispatch(env, "leaderboard.yml", "🏆 Screening the HL leaderboard — top traders arriving shortly."));
       case "/ta": return needArg("Usage: /ta &lt;coin&gt; (e.g. /ta hype)") && send(env, chatId, await dispatchTa(env, argStr));
       case "/smartmoney": case "/sm": return send(env, chatId, await dispatch(env, "smartmoney.yml", "🧠 Reading top traders’ net positioning — arriving shortly."));
+      case "/radar": return send(env, chatId, await dispatch(env, "radar.yml", "🆕 Scanning CT for new movers — I’ll ping you if anything’s heating up."));
       // condition watches
       case "/watch": return needArg(watchUsage()) && send(env, chatId, await cmdWatch(env, args));
       case "/watches": return send(env, chatId, await cmdWatches(env));
@@ -359,6 +360,7 @@ function helpText() {
     "", "📈 <b>Analysis</b>",
     "/ta &lt;coin&gt; — full technical read + whale confluence",
     "/smartmoney — top traders’ net positioning per coin",
+    "/radar — scan CT for new coins heating up",
     "/watch &lt;coin&gt; &lt;conds&gt; — alert when conditions hit",
     "/watches · /unwatch &lt;id&gt;",
     "", "📰 <b>On-demand</b> (triggers a run)",
