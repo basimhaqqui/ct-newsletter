@@ -33,15 +33,15 @@ async function sendPhoto(url, caption, liveUrl) {
   if (liveUrl) body.reply_markup = { inline_keyboard: [[{ text: "📊 Open live chart", url: liveUrl }]] };
   try { await fetch(`https://api.telegram.org/bot${TG}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); } catch {}
 }
-function taChartUrl(coin, closes, R, S, e20) {
-  const c = closes.map((n) => +n.toFixed(4)), flat = (v) => c.map(() => +v.toFixed(4));
+function taChartUrl(coin, closes) {
+  const c = closes.map((n) => +n.toFixed(5));
+  const up = c[c.length - 1] >= c[0], line = up ? "#22c55e" : "#ef4444", fill = up ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.18)";
   const cfg = { type: "line", data: { labels: c.map(() => ""), datasets: [
-    { label: coin, data: c, borderColor: "#2563eb", fill: false, pointRadius: 0, borderWidth: 2 },
-    { label: "resistance", data: flat(R), borderColor: "#ef4444", fill: false, pointRadius: 0, borderDash: [6, 4] },
-    { label: "support", data: flat(S), borderColor: "#22c55e", fill: false, pointRadius: 0, borderDash: [6, 4] },
-    { label: "EMA20", data: flat(e20), borderColor: "#f59e0b", fill: false, pointRadius: 0, borderDash: [3, 3] }] },
-    options: { title: { display: true, text: `${coin} · last ${c.length}d (1D)` }, legend: { position: "bottom" } } };
-  return "https://quickchart.io/chart?w=640&h=380&c=" + encodeURIComponent(JSON.stringify(cfg));
+    { data: c, borderColor: line, backgroundColor: fill, fill: true, pointRadius: 0, borderWidth: 2.5, lineTension: 0.3 },
+    { data: c.map(() => c[0]), borderColor: "rgba(255,255,255,0.25)", borderDash: [6, 5], fill: false, pointRadius: 0, borderWidth: 1 }] },
+    options: { legend: { display: false }, title: { display: false }, layout: { padding: 8 },
+      scales: { xAxes: [{ display: false, gridLines: { display: false } }], yAxes: [{ display: false, gridLines: { display: false } }] } } };
+  return "https://quickchart.io/chart?w=720&h=380&bkg=" + encodeURIComponent("#0b0e11") + "&c=" + encodeURIComponent(JSON.stringify(cfg));
 }
 
 // indicators
@@ -50,7 +50,7 @@ function rsi(a, p = 14) { let g = 0, l = 0; for (let i = a.length - p; i < a.len
 function macd(a) { const line = ema(a, 12) - ema(a, 26); const m = a.map((_, i) => i < 26 ? 0 : ema(a.slice(0, i + 1), 12) - ema(a.slice(0, i + 1), 26)).slice(-9); return { line, signal: ema(m, 9), hist: line - ema(m, 9) }; }
 function atr(h, l, c, p = 14) { const tr = []; for (let i = 1; i < c.length; i++) tr.push(Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1]))); return tr.slice(-p).reduce((s, v) => s + v, 0) / p; }
 
-const IV = { "1h": 3600e3, "4h": 4 * 3600e3, "1d": 86400e3 };
+const IV = { "15m": 9e5, "1h": 3600e3, "4h": 4 * 3600e3, "1d": 86400e3 };
 async function candles(interval, count) {
   const end = Date.now(), start = end - IV[interval] * count;
   const c = await info({ type: "candleSnapshot", req: { coin: COIN, interval, startTime: start, endTime: end } });
@@ -65,7 +65,7 @@ function tfRead(d) {
 try {
   if (!KEY) throw new Error("missing ANTHROPIC_API_KEY");
   // multi-timeframe
-  const d1 = await candles("1d", 75), h4 = await candles("4h", 120), h1 = await candles("1h", 120);
+  const d1 = await candles("1d", 75), h4 = await candles("4h", 120), h1 = await candles("1h", 120), intra = await candles("15m", 96);
   const px = d1.c[d1.c.length - 1];
   const m = macd(d1.c), a = atr(d1.h, d1.l, d1.c);
   const hi30 = Math.max(...d1.h.slice(-30)), lo30 = Math.min(...d1.l.slice(-30));
@@ -102,8 +102,9 @@ try {
     whales,
   };
 
-  // chart first (snapshot + tap-to-open live HL chart)
-  await sendPhoto(taChartUrl(COIN, d1.c.slice(-30), hi14, lo14, +tfRead(d1).e20), `📈 ${COIN} $${pxf(px)} · R $${pxf(hi14)} / S $${pxf(lo14)}`, `https://app.hyperliquid.xyz/trade/${COIN}`);
+  // X-style chart first (snapshot + tap-to-open live HL chart)
+  const ch1d = (intra.c[intra.c.length - 1] / intra.c[0] - 1) * 100;
+  await sendPhoto(taChartUrl(COIN, intra.c), `${COIN} · $${pxf(px)}  ${ch1d >= 0 ? "▲" : "▼"}${Math.abs(ch1d).toFixed(2)}% · 1D`, `https://app.hyperliquid.xyz/trade/${COIN}`);
 
   const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). You are given real Hyperliquid data for ${COIN}: multi-timeframe trend/RSI, MACD, ATR, support/resistance, perp funding & open interest, and how many of the user's TRACKED PROVEN WALLETS hold this coin and which side.
 
