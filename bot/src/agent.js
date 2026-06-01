@@ -213,6 +213,8 @@ async function technicalAnalysis(env, chatId, coin) {
     funding_annual_pct: f ? +f.fundingAnnual.toFixed(0) : null, open_interest_usd: f ? Math.round(f.oi) : null,
     whales: `${whales.long}L/${whales.short}S of ${whales.total} (${whales.who.join("; ") || "none"})`,
   };
+  // Send the price chart first (snapshot + tap-to-open live HL chart), then the written read.
+  await sendPhoto(env, chatId, taChartUrl(key, d1.c.slice(-30), data.resistance, data.support[1], data.ema20_1d), `📈 ${key} $${pxf(px)} · R $${pxf(data.resistance)} / S $${pxf(data.support[1])}`, `https://app.hyperliquid.xyz/trade/${key}`);
   const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). Given real Hyperliquid data for ${key}, write: one-line verdict; trend (1d/4h); momentum (RSI, flag overbought>70/oversold<30); positioning (funding healthy vs crowded + OI); whale confluence; key levels (resistance/support, use the numbers); invalidation level; one if-then scenario. Be honest and probabilistic, never fake-confident. End with "<i>Not advice · TA is probabilistic · manage risk.</i>". Output only the read — no preamble, no code fences, no meta-commentary about your reasoning. Under ~230 words.`;
   const j = await callClaude(env, { model: TA_MODEL, system: sys, max_tokens: 1500, messages: [{ role: "user", content: "Data:\n" + JSON.stringify(data, null, 2) }] });
   return (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
@@ -265,6 +267,27 @@ export async function runAgent(env, chatId, userText) {
       : `⚠️ Something went wrong: ${esc((e.message || "").slice(0, 160))}`;
     await tg(env, chatId, msg);
   }
+}
+
+// Build a QuickChart price-line image (price + resistance/support/EMA levels).
+function taChartUrl(coin, closes, R, S, ema) {
+  const c = closes.map((n) => +n.toFixed(4)), flat = (v) => c.map(() => +v.toFixed(4));
+  const cfg = {
+    type: "line",
+    data: { labels: c.map(() => ""), datasets: [
+      { label: coin, data: c, borderColor: "#2563eb", fill: false, pointRadius: 0, borderWidth: 2 },
+      { label: "resistance", data: flat(R), borderColor: "#ef4444", fill: false, pointRadius: 0, borderDash: [6, 4] },
+      { label: "support", data: flat(S), borderColor: "#22c55e", fill: false, pointRadius: 0, borderDash: [6, 4] },
+      { label: "EMA20", data: flat(ema), borderColor: "#f59e0b", fill: false, pointRadius: 0, borderDash: [3, 3] },
+    ] },
+    options: { title: { display: true, text: `${coin} · last ${c.length}d (1D)` }, legend: { position: "bottom" } },
+  };
+  return "https://quickchart.io/chart?w=640&h=380&c=" + encodeURIComponent(JSON.stringify(cfg));
+}
+async function sendPhoto(env, chatId, photoUrl, caption, liveUrl) {
+  const body = { chat_id: chatId, photo: photoUrl, caption };
+  if (liveUrl) body.reply_markup = { inline_keyboard: [[{ text: "📊 Open live chart", url: liveUrl }]] };
+  try { await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); } catch {}
 }
 
 // Native "Bot is typing…" indicator — re-fire periodically (it fades after ~5s).

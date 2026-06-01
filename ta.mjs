@@ -27,6 +27,22 @@ async function send(text) {
   const r = await fetch(`https://api.telegram.org/bot${TG}/sendMessage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHAT, text, parse_mode: "HTML", disable_web_page_preview: true }) });
   const j = await r.json(); if (!j.ok) console.error("TG", JSON.stringify(j));
 }
+async function sendPhoto(url, caption, liveUrl) {
+  if (!TG || !CHAT) return;
+  const body = { chat_id: CHAT, photo: url, caption };
+  if (liveUrl) body.reply_markup = { inline_keyboard: [[{ text: "📊 Open live chart", url: liveUrl }]] };
+  try { await fetch(`https://api.telegram.org/bot${TG}/sendPhoto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); } catch {}
+}
+function taChartUrl(coin, closes, R, S, e20) {
+  const c = closes.map((n) => +n.toFixed(4)), flat = (v) => c.map(() => +v.toFixed(4));
+  const cfg = { type: "line", data: { labels: c.map(() => ""), datasets: [
+    { label: coin, data: c, borderColor: "#2563eb", fill: false, pointRadius: 0, borderWidth: 2 },
+    { label: "resistance", data: flat(R), borderColor: "#ef4444", fill: false, pointRadius: 0, borderDash: [6, 4] },
+    { label: "support", data: flat(S), borderColor: "#22c55e", fill: false, pointRadius: 0, borderDash: [6, 4] },
+    { label: "EMA20", data: flat(e20), borderColor: "#f59e0b", fill: false, pointRadius: 0, borderDash: [3, 3] }] },
+    options: { title: { display: true, text: `${coin} · last ${c.length}d (1D)` }, legend: { position: "bottom" } } };
+  return "https://quickchart.io/chart?w=640&h=380&c=" + encodeURIComponent(JSON.stringify(cfg));
+}
 
 // indicators
 const ema = (a, p) => { const k = 2 / (p + 1); let e = a[0]; for (let i = 1; i < a.length; i++) e = a[i] * k + e * (1 - k); return e; };
@@ -85,6 +101,9 @@ try {
     open_interest_usd: Math.round(oi * mark), premium_pct: +(num(ctx.premium) * 100).toFixed(3),
     whales,
   };
+
+  // chart first (snapshot + tap-to-open live HL chart)
+  await sendPhoto(taChartUrl(COIN, d1.c.slice(-30), hi14, lo14, +tfRead(d1).e20), `📈 ${COIN} $${pxf(px)} · R $${pxf(hi14)} / S $${pxf(lo14)}`, `https://app.hyperliquid.xyz/trade/${COIN}`);
 
   const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). You are given real Hyperliquid data for ${COIN}: multi-timeframe trend/RSI, MACD, ATR, support/resistance, perp funding & open interest, and how many of the user's TRACKED PROVEN WALLETS hold this coin and which side.
 
