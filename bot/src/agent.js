@@ -33,6 +33,15 @@ async function ghPut(env, path, obj, sha, message) {
   return r.ok;
 }
 async function getWallets(env) { const f = await ghGet(env, "wallets.json"); return Array.isArray(f?.content) && f.content.length ? f.content : WALLETS_FALLBACK; }
+
+// ---- persistent per-user profile (long-term memory, no TTL) ----
+async function getProfile(env, chatId) {
+  if (!env.MEMORY) return { notes: [] };
+  try { return JSON.parse((await env.MEMORY.get(`profile:${chatId}`)) || '{"notes":[]}'); } catch { return { notes: [] }; }
+}
+async function saveProfile(env, chatId, p) {
+  if (env.MEMORY) await env.MEMORY.put(`profile:${chatId}`, JSON.stringify({ notes: (p.notes || []).slice(-30), updatedAt: Math.floor(Date.now() / 1000) }));
+}
 async function positions(addr) {
   const j = await info({ type: "clearinghouseState", user: addr });
   return (j.assetPositions || []).map((p) => { const pos = p.position || {}, szi = num(pos.szi), n = num(pos.positionValue); return { coin: pos.coin, side: szi > 0 ? "LONG" : "SHORT", lev: pos.leverage?.value || 0, notional: n, entry: num(pos.entryPx), uPnl: num(pos.unrealizedPnl) }; }).filter((p) => Math.abs(p.notional) >= MIN_NOTIONAL);
@@ -74,6 +83,8 @@ const TOOLS = [
   { name: "technical_analysis", description: "Deep multi-timeframe technical read for a coin (trend, RSI, key levels, funding, and whether the tracked whales confirm). Use whenever the user asks for analysis, 'what's the play', an entry, levels, or whether to buy/sell. Returns a finished expert read — present it to the user as-is.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
   { name: "position_size", description: "Risk-based position sizing. Given coin, dollar risk, stop price (and optional entry), returns units + notional.", input_schema: { type: "object", properties: { coin: { type: "string" }, risk: { type: "number" }, stop: { type: "number" }, entry: { type: "number" } }, required: ["coin", "risk", "stop"] } },
   { name: "set_watch", description: "Create a one-shot alert that fires when ALL conditions hold (checked ~every 30 min). Conditions are strings like 'price<55', 'rsi<50', 'funding>50', 'whales-long', 'whales-short'.", input_schema: { type: "object", properties: { coin: { type: "string" }, conditions: { type: "array", items: { type: "string" } } }, required: ["coin", "conditions"] } },
+  { name: "remember", description: "Save a durable fact about THIS user to long-term memory — their HL wallet address, default risk size, an open position they tell you about, or a stated preference. Use whenever they share something worth recalling in future conversations. Don't save one-off chatter or market data.", input_schema: { type: "object", properties: { note: { type: "string", description: "short fact, e.g. 'HL wallet: 0xabc…' or 'default risk: $1000' or 'long HYPE from $52'" } }, required: ["note"] } },
+  { name: "forget", description: "Remove remembered fact(s) that are no longer true (matched by a phrase). Use when something changes — e.g. they closed a position or changed their risk size: forget the stale note, then remember the new one.", input_schema: { type: "object", properties: { match: { type: "string" } }, required: ["match"] } },
   { name: "run_job", description: "Trigger a background job; result arrives in the chat shortly. jobs: digest (full CT newsletter), scorecard (wallet performance), smartmoney (top-50 net positioning), leaderboard (top traders), radar (scan CT for new coins heating up). Or an X scrape: set job to x|ticker|trending|search|calls|discover and pass arg.", input_schema: { type: "object", properties: { job: { type: "string" }, arg: { type: "string" } }, required: ["job"] } },
 ];
 
@@ -129,6 +140,22 @@ async function execTool(env, chatId, name, input) {
     const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${file}/dispatches`, { method: "POST", headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot", "Content-Type": "application/json" }, body: JSON.stringify(Object.keys(inputs).length ? { ref: "main", inputs } : { ref: "main" }) });
     return r.status === 204 ? `Triggered '${input.job}' — result will arrive in the chat shortly.` : `Couldn't trigger (${r.status}).`;
   }
+  if (name === "remember") {
+    const p = await getProfile(env, chatId);
+    const note = String(input.note || "").slice(0, 200);
+    if (!note) return "nothing to remember.";
+    p.notes = [...(p.notes || []).filter((n) => n !== note), note].slice(-30);
+    await saveProfile(env, chatId, p);
+    return `Saved to memory: "${note}"`;
+  }
+  if (name === "forget") {
+    const p = await getProfile(env, chatId);
+    const m = String(input.match || "").toLowerCase();
+    const before = (p.notes || []).length;
+    p.notes = (p.notes || []).filter((n) => !n.toLowerCase().includes(m));
+    await saveProfile(env, chatId, p);
+    return `Removed ${before - p.notes.length} note(s) matching "${esc(input.match)}".`;
+  }
   if (name === "technical_analysis") return technicalAnalysis(env, chatId, input.coin);
   return `Unknown tool ${name}`;
 }
@@ -162,6 +189,8 @@ Style: concise, direct, a little sharp — like a sharp trading buddy texting ba
 
 Use tools to answer with REAL data — never guess prices, positions, or levels. For any analysis / "what's the play" / entry / buy-or-sell question, call technical_analysis and present its read (it's an expert Opus analysis — relay it, don't rewrite or second-guess it). For positioning questions use get_wallets. For quick prices use get_coin/get_market. For sizing use position_size. To set alerts use set_watch. To run the digest/scorecard/smartmoney/leaderboard or scrape X, use run_job.
 
+Memory: you have long-term memory about this user — anything in <known_about_user> below is what you already know. Reference it naturally (e.g. use their saved default risk size when sizing; mention their open positions). Use the remember tool when they share a durable fact (HL wallet, default risk, an open position, a preference); use forget when something changes (closed a position, new risk size — forget the stale note, remember the new). Don't remember market data or one-off chatter.
+
 Honesty guardrails (non-negotiable): you are decision SUPPORT, not financial advice. TA is probabilistic, not prediction. Never give fake-confident "buy now" calls. The user trades manually. Remind lightly when relevant, don't lecture.`;
 
 const KV_TTL = 7200; // 2h conversation memory
@@ -171,11 +200,14 @@ export async function runAgent(env, chatId, userText) {
   let history = [];
   try { if (env.MEMORY) history = JSON.parse((await env.MEMORY.get(`chat:${chatId}`)) || "[]"); } catch {}
   const messages = [...history, { role: "user", content: userText }];
+  // Inject long-term profile into the system prompt so the bot "knows" the user.
+  const profile = await getProfile(env, chatId);
+  const sys = SYSTEM + (profile.notes?.length ? `\n\n<known_about_user>\n${profile.notes.map((n) => "- " + n).join("\n")}\n</known_about_user>` : "");
   try {
     await typing(env, chatId); // immediate "got it, working…" signal
     for (let i = 0; i < 5; i++) {
       await typing(env, chatId);
-      const resp = await callClaude(env, { model: CHAT_MODEL, system: SYSTEM, tools: TOOLS, max_tokens: 1024, messages });
+      const resp = await callClaude(env, { model: CHAT_MODEL, system: sys, tools: TOOLS, max_tokens: 1024, messages });
       messages.push({ role: "assistant", content: resp.content });
       if (resp.stop_reason !== "tool_use") {
         const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim() || "…";

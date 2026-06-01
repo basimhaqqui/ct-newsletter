@@ -69,6 +69,8 @@ async function handle(text, chatId, env) {
       case "/price": return send(env, chatId, await cmdPrice(args[0]));
       case "/size": return send(env, chatId, await cmdSize(args));
       case "/status": return send(env, chatId, statusText(env));
+      case "/memory": return send(env, chatId, await cmdMemory(env, chatId));
+      case "/forgetme": return send(env, chatId, await cmdForgetMe(env, chatId));
       // watchlist edits
       case "/track": return needArg("Usage: /track &lt;0x address&gt; [label]") && send(env, chatId, await cmdTrack(env, args));
       case "/untrack": return needArg("Usage: /untrack &lt;label|0x&gt;") && send(env, chatId, await cmdUntrack(env, argStr));
@@ -345,6 +347,17 @@ async function dispatchTa(env, coin) {
   return r.status === 204 ? `📈 Running TA on ${esc(coin.toUpperCase())} — arriving shortly.` : `⚠️ couldn’t trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
 }
 
+async function cmdMemory(env, chatId) {
+  if (!env.MEMORY) return "Memory isn’t configured.";
+  let p; try { p = JSON.parse((await env.MEMORY.get(`profile:${chatId}`)) || '{"notes":[]}'); } catch { p = { notes: [] }; }
+  return p.notes?.length
+    ? "🧠 <b>What I remember about you</b>\n" + p.notes.map((n) => "• " + esc(n)).join("\n") + "\n\n<i>Tell me anything in chat to add; /forgetme to wipe.</i>"
+    : "I don’t have anything saved about you yet. Just tell me in chat — e.g. “remember my HL wallet is 0x…, default risk $1000”.";
+}
+async function cmdForgetMe(env, chatId) {
+  if (env.MEMORY) await env.MEMORY.put(`profile:${chatId}`, JSON.stringify({ notes: [] }));
+  return "🧹 Cleared everything I remembered about you.";
+}
 function statusText(env) {
   return ["✅ <b>CT bot online</b>", "", "Scheduled: digest 6 AM PT · wallet watch /30 min · scorecard Sundays", "Run /menu for commands."].join("\n");
 }
@@ -368,6 +381,8 @@ function helpText() {
     "", "📱 <b>X / Twitter</b> (Apify cost)",
     "/trending · /ticker &lt;sym&gt; · /x &lt;handle&gt;",
     "/calls &lt;handle&gt; · /search &lt;query&gt; · /discover",
+    "", "🧠 <b>Memory</b> — just talk; it remembers you",
+    "/memory — what it knows · /forgetme — wipe it",
     "", "⚙️ /mute [30m|2h] · /unmute · /status · /menu",
   ].join("\n");
 }
