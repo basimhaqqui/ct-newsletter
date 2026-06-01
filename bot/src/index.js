@@ -71,6 +71,8 @@ async function handle(text, chatId, env) {
       case "/status": return send(env, chatId, statusText(env));
       case "/memory": return send(env, chatId, await cmdMemory(env, chatId));
       case "/forgetme": return send(env, chatId, await cmdForgetMe(env, chatId));
+      case "/paper": return send(env, chatId, await cmdPaper(env, chatId));
+      case "/paperreset": return send(env, chatId, await cmdPaperReset(env, chatId));
       // watchlist edits
       case "/track": return needArg("Usage: /track &lt;0x address&gt; [label]") && send(env, chatId, await cmdTrack(env, args));
       case "/untrack": return needArg("Usage: /untrack &lt;label|0x&gt;") && send(env, chatId, await cmdUntrack(env, argStr));
@@ -347,6 +349,30 @@ async function dispatchTa(env, coin) {
   return r.status === 204 ? `📈 Running TA on ${esc(coin.toUpperCase())} — arriving shortly.` : `⚠️ couldn’t trigger (${r.status}): ${(await r.text()).slice(0, 120)}`;
 }
 
+async function cmdPaper(env, chatId) {
+  if (!env.MEMORY) return "Memory isn’t configured.";
+  let p; try { p = JSON.parse((await env.MEMORY.get(`paper:${chatId}`)) || '{"open":[],"closed":[],"realized":0}'); } catch { p = { open: [], closed: [], realized: 0 }; }
+  if (!p.open.length && !p.closed.length) return "📝 No paper trades yet. Tell me e.g. “paper long hype $1000 stop 48”.";
+  const mids = p.open.length ? await allMids() : {};
+  const lines = ["📝 <b>Paper portfolio</b>", ""];
+  let unreal = 0;
+  if (p.open.length) {
+    lines.push("<b>Open:</b>");
+    for (const t of p.open) {
+      const k = Object.keys(mids).find((x) => x.toLowerCase() === t.coin.toLowerCase());
+      const cur = k ? num(mids[k]) : t.entry, pnl = (cur / t.entry - 1) * t.notional * (t.side === "long" ? 1 : -1);
+      unreal += pnl;
+      lines.push(`• ${t.side.toUpperCase()} ${esc(t.coin)} @ $${pxf(t.entry)} → $${pxf(cur)} · ${usd(pnl)} <code>${t.id}</code>`);
+    }
+  } else lines.push("<i>No open positions.</i>");
+  lines.push("", `Unrealized: ${usd(unreal)} · Realized: ${usd(p.realized || 0)}${p.closed?.length ? ` · ${p.closed.length} closed` : ""}`);
+  lines.push("", "<i>Paper only — not real trades. /paperreset to clear.</i>");
+  return lines.join("\n");
+}
+async function cmdPaperReset(env, chatId) {
+  if (env.MEMORY) await env.MEMORY.put(`paper:${chatId}`, JSON.stringify({ open: [], closed: [], realized: 0 }));
+  return "🧹 Paper portfolio reset.";
+}
 async function cmdMemory(env, chatId) {
   if (!env.MEMORY) return "Memory isn’t configured.";
   let p; try { p = JSON.parse((await env.MEMORY.get(`profile:${chatId}`)) || '{"notes":[]}'); } catch { p = { notes: [] }; }
@@ -370,6 +396,7 @@ function helpText() {
     "", "💲 <b>Market</b> (instant)",
     "/market · /hl &lt;coin&gt; · /price &lt;coin&gt;",
     "/size &lt;coin&gt; &lt;risk$&gt; &lt;stop&gt; — position sizer",
+    "/paper — paper-trading portfolio (just tell me your trades)",
     "", "📈 <b>Analysis</b>",
     "/ta &lt;coin&gt; — full technical read + whale confluence",
     "/smartmoney — top traders’ net positioning per coin",

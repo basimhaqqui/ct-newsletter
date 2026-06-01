@@ -42,6 +42,14 @@ async function getProfile(env, chatId) {
 async function saveProfile(env, chatId, p) {
   if (env.MEMORY) await env.MEMORY.put(`profile:${chatId}`, JSON.stringify({ notes: (p.notes || []).slice(-30), updatedAt: Math.floor(Date.now() / 1000) }));
 }
+
+// ---- paper trading (hypothetical, persisted in KV) ----
+async function getPaper(env, chatId) {
+  if (!env.MEMORY) return { open: [], closed: [], realized: 0 };
+  try { return JSON.parse((await env.MEMORY.get(`paper:${chatId}`)) || '{"open":[],"closed":[],"realized":0}'); } catch { return { open: [], closed: [], realized: 0 }; }
+}
+async function savePaper(env, chatId, p) { if (env.MEMORY) await env.MEMORY.put(`paper:${chatId}`, JSON.stringify(p)); }
+const pnlOf = (t, cur) => (cur / t.entry - 1) * t.notional * (t.side === "long" ? 1 : -1);
 async function positions(addr) {
   const j = await info({ type: "clearinghouseState", user: addr });
   return (j.assetPositions || []).map((p) => { const pos = p.position || {}, szi = num(pos.szi), n = num(pos.positionValue); return { coin: pos.coin, side: szi > 0 ? "LONG" : "SHORT", lev: pos.leverage?.value || 0, notional: n, entry: num(pos.entryPx), uPnl: num(pos.unrealizedPnl) }; }).filter((p) => Math.abs(p.notional) >= MIN_NOTIONAL);
@@ -83,6 +91,9 @@ const TOOLS = [
   { name: "technical_analysis", description: "Deep multi-timeframe technical read for a coin (trend, RSI, key levels, funding, and whether the tracked whales confirm). Use whenever the user asks for analysis, 'what's the play', an entry, levels, or whether to buy/sell. Returns a finished expert read — present it to the user as-is.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
   { name: "position_size", description: "Risk-based position sizing. Given coin, dollar risk, stop price (and optional entry), returns units + notional.", input_schema: { type: "object", properties: { coin: { type: "string" }, risk: { type: "number" }, stop: { type: "number" }, entry: { type: "number" } }, required: ["coin", "risk", "stop"] } },
   { name: "set_watch", description: "Create a one-shot alert that fires when ALL conditions hold (checked ~every 30 min). Conditions are strings like 'price<55', 'rsi<50', 'funding>50', 'whales-long', 'whales-short'.", input_schema: { type: "object", properties: { coin: { type: "string" }, conditions: { type: "array", items: { type: "string" } } }, required: ["coin", "conditions"] } },
+  { name: "paper_open", description: "Record a HYPOTHETICAL (paper) trade for practice — NOT a real order. Use when the user wants to simulate entering (e.g. 'paper long hype $1000 stop 48'). Entry defaults to current price if not given.", input_schema: { type: "object", properties: { coin: { type: "string" }, side: { type: "string", enum: ["long", "short"] }, notional: { type: "number", description: "position size in USD" }, entry: { type: "number" }, stop: { type: "number" } }, required: ["coin", "side", "notional"] } },
+  { name: "paper_close", description: "Close a paper trade at the current price and book realized P&L. Identify by coin or id.", input_schema: { type: "object", properties: { coin: { type: "string" }, id: { type: "string" } } } },
+  { name: "paper_status", description: "Show open paper trades with live unrealized P&L + total realized. Use for 'how's my paper portfolio'.", input_schema: { type: "object", properties: {} } },
   { name: "remember", description: "Save a durable fact about THIS user to long-term memory — their HL wallet address, default risk size, an open position they tell you about, or a stated preference. Use whenever they share something worth recalling in future conversations. Don't save one-off chatter or market data.", input_schema: { type: "object", properties: { note: { type: "string", description: "short fact, e.g. 'HL wallet: 0xabc…' or 'default risk: $1000' or 'long HYPE from $52'" } }, required: ["note"] } },
   { name: "forget", description: "Remove remembered fact(s) that are no longer true (matched by a phrase). Use when something changes — e.g. they closed a position or changed their risk size: forget the stale note, then remember the new one.", input_schema: { type: "object", properties: { match: { type: "string" } }, required: ["match"] } },
   { name: "run_job", description: "Trigger a background job; result arrives in the chat shortly. jobs: digest (full CT newsletter), scorecard (wallet performance), smartmoney (top-50 net positioning), leaderboard (top traders), radar (scan CT for new coins heating up). Or an X scrape: set job to x|ticker|trending|search|calls|discover and pass arg.", input_schema: { type: "object", properties: { job: { type: "string" }, arg: { type: "string" } }, required: ["job"] } },
@@ -140,6 +151,30 @@ async function execTool(env, chatId, name, input) {
     const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${file}/dispatches`, { method: "POST", headers: { Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "ct-bot", "Content-Type": "application/json" }, body: JSON.stringify(Object.keys(inputs).length ? { ref: "main", inputs } : { ref: "main" }) });
     return r.status === 204 ? `Triggered '${input.job}' — result will arrive in the chat shortly.` : `Couldn't trigger (${r.status}).`;
   }
+  if (name === "paper_open") {
+    const mk = await midKey(input.coin); if (!mk) return `No HL market for ${input.coin}.`;
+    const entry = input.entry || mk.price, id = "p" + Date.now().toString(36).slice(-4);
+    const t = { id, coin: mk.key, side: (input.side || "long").toLowerCase(), entry, notional: input.notional, stop: input.stop || null, openedAt: Math.floor(Date.now() / 1000) };
+    const p = await getPaper(env, chatId); p.open.push(t); await savePaper(env, chatId, p);
+    return `📝 Paper ${t.side.toUpperCase()} ${t.coin} — entry $${pxf(entry)}, size ${usd(t.notional)}${t.stop ? `, stop $${pxf(t.stop)}` : ""} (id ${id}). Hypothetical — not a real order.`;
+  }
+  if (name === "paper_close") {
+    const p = await getPaper(env, chatId);
+    const idx = p.open.findIndex((t) => (input.id && t.id === input.id) || (input.coin && t.coin.toLowerCase() === input.coin.toLowerCase()));
+    if (idx < 0) return "No matching open paper trade. Ask for /paper to list them.";
+    const t = p.open[idx], mk = await midKey(t.coin), cur = mk ? mk.price : t.entry, pnl = pnlOf(t, cur);
+    p.open.splice(idx, 1); p.closed.push({ ...t, closePx: cur, pnl: +pnl.toFixed(2), closedAt: Math.floor(Date.now() / 1000) });
+    p.realized = +((p.realized || 0) + pnl).toFixed(2); await savePaper(env, chatId, p);
+    const pct = (cur / t.entry - 1) * 100 * (t.side === "long" ? 1 : -1);
+    return `Closed paper ${t.side.toUpperCase()} ${t.coin}: $${pxf(t.entry)} → $${pxf(cur)} = ${usd(pnl)} (${pct.toFixed(1)}%). Total realized: ${usd(p.realized)}`;
+  }
+  if (name === "paper_status") {
+    const p = await getPaper(env, chatId);
+    if (!p.open.length && !p.closed.length) return "No paper trades yet. Say e.g. “paper long hype $1000 stop 48”.";
+    let unreal = 0; const lines = [];
+    for (const t of p.open) { const mk = await midKey(t.coin), cur = mk ? mk.price : t.entry, pnl = pnlOf(t, cur); unreal += pnl; lines.push(`${t.side.toUpperCase()} ${t.coin} @ $${pxf(t.entry)} (now $${pxf(cur)}) → ${usd(pnl)} [${t.id}]`); }
+    return `📝 Paper portfolio\nOpen:\n${lines.join("\n") || "  none"}\nUnrealized ${usd(unreal)} · Realized ${usd(p.realized || 0)} · ${p.closed.length} closed`;
+  }
   if (name === "remember") {
     const p = await getProfile(env, chatId);
     const note = String(input.note || "").slice(0, 200);
@@ -190,6 +225,8 @@ Style: concise, direct, a little sharp — like a sharp trading buddy texting ba
 Use tools to answer with REAL data — never guess prices, positions, or levels. For any analysis / "what's the play" / entry / buy-or-sell question, call technical_analysis and present its read (it's an expert Opus analysis — relay it, don't rewrite or second-guess it). For positioning questions use get_wallets. For quick prices use get_coin/get_market. For sizing use position_size. To set alerts use set_watch. To run the digest/scorecard/smartmoney/leaderboard or scrape X, use run_job.
 
 Memory: you have long-term memory about this user — anything in <known_about_user> below is what you already know. Reference it naturally (e.g. use their saved default risk size when sizing; mention their open positions). Use the remember tool when they share a durable fact (HL wallet, default risk, an open position, a preference); use forget when something changes (closed a position, new risk size — forget the stale note, remember the new). Don't remember market data or one-off chatter.
+
+Paper trading: the user is practicing with HYPOTHETICAL trades while they wait to fund their real account. When they describe entering/exiting a simulated position, use paper_open/paper_close; for "how's my paper portfolio" use paper_status. Always make clear these are paper (not real) trades. Encourage small, disciplined sizing as if it were real.
 
 Honesty guardrails (non-negotiable): you are decision SUPPORT, not financial advice. TA is probabilistic, not prediction. Never give fake-confident "buy now" calls. The user trades manually. Remind lightly when relevant, don't lecture.`;
 
