@@ -53,5 +53,13 @@
       "rsi<50"
     ],
     "created": 1780309977
+  },
+  {
+    "id": "w31ft",
+    "coin": "HYPE",
+    "conds": [
+      "price>75.83"
+    ],
+    "created": 1780357829
   }
 ]
