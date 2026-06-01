@@ -20,5 +20,16 @@
     "whales": "4L/0S/4",
     "resistance": 68.64,
     "support": 55.131
+  },
+  {
+    "ts": 1780348731,
+    "coin": "SOL",
+    "price": 80.55,
+    "rsi": 34,
+    "trend": "down",
+    "funding_annual_pct": 11,
+    "whales": "0L/1S/4",
+    "resistance": 88,
+    "support": 84.546
   }
 ]
