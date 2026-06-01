@@ -213,7 +213,7 @@ export async function runAgent(env, chatId, userText) {
         const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim() || "…";
         await tg(env, chatId, text);
         const newHist = [...history, { role: "user", content: userText }, { role: "assistant", content: text }].slice(-8);
-        if (env.MEMORY) await env.MEMORY.put(`chat:${chatId}`, JSON.stringify(newHist), { expirationTtl: KV_TTL });
+        if (env.MEMORY) { try { await env.MEMORY.put(`chat:${chatId}`, JSON.stringify(newHist), { expirationTtl: KV_TTL }); } catch {} }
         return;
       }
       const results = [];
