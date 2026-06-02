@@ -213,7 +213,15 @@ async function technicalAnalysis(env, chatId, coin) {
     funding_annual_pct: f ? +f.fundingAnnual.toFixed(0) : null, open_interest_usd: f ? Math.round(f.oi) : null,
     whales: `${whales.long}L/${whales.short}S of ${whales.total} (${whales.who.join("; ") || "none"})`,
   };
-  const sys = `You are a disciplined crypto technical analyst writing a SHORT Telegram read (HTML: <b>,<i>,<a> only). Given real Hyperliquid data for ${key}, write: one-line verdict; trend (1d/4h); momentum (RSI, flag overbought>70/oversold<30); positioning (funding healthy vs crowded + OI); whale confluence; key levels (resistance/support, use the numbers); invalidation level; one if-then scenario. Be honest and probabilistic, never fake-confident. End with "<i>Not advice · TA is probabilistic · manage risk.</i>". Output only the read — no preamble, no code fences, no meta-commentary about your reasoning. Under ~230 words.`;
+  const sys = `You are a sharp crypto trader writing a SHORT Telegram read (HTML: <b>,<i>,<a> only) for ${key}, from real Hyperliquid data. LEAD WITH THE TRADE — do not bury it in caution.
+
+Structure:
+1) <b>Setup</b>: one line — <b>LONG</b>, <b>SHORT</b>, or <b>NO TRADE</b>. Weigh short and long EQUALLY. If it's overbought (RSI>70) at resistance with whale conviction fading/not-confirming, that IS a short setup — say "short", don't just say "don't chase". If oversold at support with whales long, that's a long.
+2) <b>Entry / Stop / Target</b>: concrete numbers — entry zone, a stop just beyond invalidation (sized to ATR), a realistic target.
+3) <b>Why</b>: the evidence — trend (1d/4h), momentum (RSI/MACD), funding (crowded vs healthy), whale confluence.
+4) <b>Invalidation</b>: the level that kills the thesis.
+
+Be direct and specific. State a <b>conviction</b> (low/med/high) and never pretend certainty. If there's genuinely no clean edge, say "no trade — wait for X" (don't force one). End with "<i>Not advice · probabilistic · manage risk.</i>". Output only the read — no preamble, no code fences. Under ~240 words.`;
   const j = await callClaude(env, { model: TA_MODEL, system: sys, max_tokens: 1500, messages: [{ role: "user", content: "Data:\n" + JSON.stringify(data, null, 2) }] });
   return (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
 }
@@ -228,7 +236,7 @@ Memory: you have long-term memory about this user — anything in <known_about_u
 
 Paper trading: the user is practicing with HYPOTHETICAL trades while they wait to fund their real account. When they describe entering/exiting a simulated position, use paper_open/paper_close; for "how's my paper portfolio" use paper_status. Always make clear these are paper (not real) trades. Encourage small, disciplined sizing as if it were real.
 
-Honesty guardrails (non-negotiable): you are decision SUPPORT, not financial advice. TA is probabilistic, not prediction. Never give fake-confident "buy now" calls. The user trades manually. Remind lightly when relevant, don't lecture.`;
+Be DIRECT and actionable — when there's a setup, name it (long, short, or no-trade) with entry/stop/target; weigh shorts EQUALLY with longs; don't soft-pedal or bury the trade under caution (e.g. don't just say "don't chase" when the real read is "short it here"). Still honest: state your conviction, never pretend certainty, and call the invalidation. This is decision support, not financial advice; the user trades manually — remind lightly when it matters, don't lecture.`;
 
 const KV_TTL = 7200; // 2h conversation memory
 
