@@ -35,22 +35,19 @@ for (const b of blocks) {
 if (cur) chunks.push(cur);
 
 const api = `https://api.telegram.org/bot${TOKEN}/sendMessage`;
+const send = (body) => fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+
+let failed = 0;
 for (let i = 0; i < chunks.length; i++) {
-  const res = await fetch(api, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: CHAT,
-      text: chunks[i],
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-      disable_notification: i > 0, // only the first message pings
-    }),
-  });
-  const j = await res.json();
+  const base = { chat_id: CHAT, disable_web_page_preview: true, disable_notification: i > 0 };
+  let j = await send({ ...base, text: chunks[i], parse_mode: "HTML" });
   if (!j.ok) {
-    console.error(`Telegram error on chunk ${i + 1}/${chunks.length}: ${JSON.stringify(j)}`);
-    process.exit(1);
+    // Summarizer occasionally emits malformed HTML (unclosed tag) → Telegram 400.
+    // Resend as plain text (tags stripped) so the digest always lands.
+    console.error(`HTML send failed on chunk ${i + 1} (${j.description}); retrying as plain text.`);
+    j = await send({ ...base, text: chunks[i].replace(/<[^>]+>/g, "") });
   }
+  if (!j.ok) { console.error(`Telegram error on chunk ${i + 1}/${chunks.length}: ${JSON.stringify(j)}`); failed++; }
 }
+if (failed) process.exit(1);
 console.error(`Sent ${chunks.length} message(s) to Telegram.`);
