@@ -61,13 +61,5 @@
       "price>75.83"
     ],
     "created": 1780357829
-  },
-  {
-    "id": "whpmf",
-    "coin": "ZEC",
-    "conds": [
-      "price<605"
-    ],
-    "created": 1780466009
   }
 ]
