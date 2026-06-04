@@ -88,5 +88,14 @@
       "price<15"
     ],
     "created": 1780610851
+  },
+  {
+    "id": "wrhnz",
+    "coin": "ZEC",
+    "conds": [
+      "price>350",
+      "price<400"
+    ],
+    "created": 1780610913
   }
 ]
