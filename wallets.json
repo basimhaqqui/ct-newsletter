@@ -18,5 +18,25 @@
     "addr": "0xc914267b2b98cabf20ef904de5fbb326c982855d",
     "label": "0xc914…855d",
     "note": "real diversified book"
+  },
+  {
+    "addr": "0x082e843a431aef031264dc232693dd710aedca88",
+    "label": "HL-Hyperbull",
+    "note": "HL leaderboard 2026-06-04: 227% mo ROI on $21M; conviction HYPE LONG $90M @5x, +$36M uPnL"
+  },
+  {
+    "addr": "0x4e14fc11f58b64740e66e4b1aa188a4b007c0eab",
+    "label": "HL-Vet96",
+    "note": "HL leaderboard 2026-06-04: $96M allTime, +$35M month, 56% ROI, $66M acct"
+  },
+  {
+    "addr": "0x85530f0ff6496c72a619f37a60f3c1a59077737f",
+    "label": "HL-TopMonth",
+    "note": "HL leaderboard 2026-06-04: #1 month PnL +$49M, 62% ROI, $127M acct"
+  },
+  {
+    "addr": "0xe44bd27c9f10fa2f89fdb3ab4b4f0e460da29ea8",
+    "label": "HL-Balanced",
+    "note": "HL leaderboard 2026-06-04: +$36M month, 37% ROI, $46M acct"
   }
 ]
