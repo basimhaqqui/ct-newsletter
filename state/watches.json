@@ -54,15 +54,6 @@
     "created": 1780610850
   },
   {
-    "id": "wq6fn",
-    "coin": "VVV",
-    "conds": [
-      "price>14",
-      "price<15"
-    ],
-    "created": 1780610851
-  },
-  {
     "id": "wrhnz",
     "coin": "ZEC",
     "conds": [
