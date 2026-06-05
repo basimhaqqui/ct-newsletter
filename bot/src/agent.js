@@ -119,7 +119,7 @@ async function execTool(env, chatId, name, input) {
     return lines.join("\n") + (consensus.length ? "\nCONSENSUS: " + consensus.join("; ") : "");
   }
   if (name === "get_coin") {
-    const mk = await midKey(input.coin); if (!mk) return `No Hyperliquid market for ${input.coin}.`;
+    const mk = await midKey(input.coin); if (!mk) return `${input.coin} is not an HL perp/spot market (likely a Solana/long-tail token on Bullpen) — no funding/whale data. Don't tell the user it's "noise"; offer general price-action TA if they want it.`;
     const f = await fundingOI(mk.key);
     return `${mk.key}: $${pxf(mk.price)}${f ? ` · funding ${f.fundingAnnual.toFixed(0)}%/yr · OI ${usd(f.oi)}` : ""}`;
   }
@@ -197,7 +197,7 @@ async function execTool(env, chatId, name, input) {
 
 // Deep tool: gather data + nested Opus call → finished read
 async function technicalAnalysis(env, chatId, coin) {
-  const mk = await midKey(coin); if (!mk) return `No Hyperliquid market for ${coin}.`;
+  const mk = await midKey(coin); if (!mk) return `${coin} isn't on Hyperliquid (probably a Solana/long-tail token tradeable on Bullpen). I can't pull HL funding/whale data for it. Tell the user that plainly and offer to do general price-action TA instead — do NOT call it "noise" or imply it isn't worth trading.`;
   await typing(env, chatId); // deep read is the slow step (~10s Opus call) — keep the indicator alive
   const key = mk.key;
   const d1 = await candles(key, "1d", 60), h4 = await candles(key, "4h", 80);
@@ -228,9 +228,13 @@ Be direct and specific. State a <b>conviction</b> (low/med/high) and never prete
 
 const SYSTEM = `You are the user's personal Crypto Twitter + Hyperliquid trading cockpit, accessed via Telegram chat. You help them read the market and their tracked on-chain whale wallets, and you drive their bot's tools.
 
+WHERE THE USER TRADES: the user trades on Bullpen. Bullpen's perps route through Hyperliquid (same 230+ perp markets), so your HL data — price, funding, OI, whale positioning — applies DIRECTLY to their Bullpen perp trades. Treat the full HL perp universe (230+ coins: BTC, ETH, SOL, ZEC, and most majors/alts) as in-scope and tradeable for them. Bullpen also has some Solana/spot long-tail tokens that aren't on HL — for those you have price-only data, not funding/whales.
+
+NEVER claim a coin is "not on HL", "not available", "not on your platform", or "off-chain noise" from memory — you will be wrong (HL lists 230+ perps). If the user names ANY ticker, CHECK it first by calling get_coin (or technical_analysis). Only say a coin is unavailable if a tool actually returns "No HL market" — and even then, offer the TA you CAN do. Never dismiss a setup you haven't verified, and never editorialize a coin as "noise."
+
 Style: concise, direct, a little sharp — like a sharp trading buddy texting back. Plain text or light Telegram HTML (<b>, <i>). No long essays.
 
-Use tools to answer with REAL data — never guess prices, positions, or levels. For any analysis / "what's the play" / entry / buy-or-sell question, call technical_analysis and present its read (it's an expert Opus analysis — relay it, don't rewrite or second-guess it). For positioning questions use get_wallets. For quick prices use get_coin/get_market. For sizing use position_size. To set alerts use set_watch. To run the digest/scorecard/smartmoney/leaderboard or scrape X, use run_job.
+Use tools to answer with REAL data — never guess prices, positions, levels, OR whether a coin is tradeable. For any analysis / "what's the play" / entry / buy-or-sell question, call technical_analysis and present its read (it's an expert Opus analysis — relay it, don't rewrite or second-guess it). For positioning questions use get_wallets. For quick prices use get_coin/get_market. For sizing use position_size. To set alerts use set_watch. To run the digest/scorecard/smartmoney/leaderboard or scrape X, use run_job.
 
 Memory: you have long-term memory about this user — anything in <known_about_user> below is what you already know. Reference it naturally (e.g. use their saved default risk size when sizing; mention their open positions). Use the remember tool when they share a durable fact (HL wallet, default risk, an open position, a preference); use forget when something changes (closed a position, new risk size — forget the stale note, remember the new). Don't remember market data or one-off chatter.
 
