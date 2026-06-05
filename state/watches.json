@@ -10,15 +10,6 @@
     "created": 1780182067
   },
   {
-    "id": "wtmvu",
-    "coin": "HYPE",
-    "conds": [
-      "price<60",
-      "whales-long"
-    ],
-    "created": 1780184390
-  },
-  {
     "id": "w6xfl",
     "coin": "BTC",
     "conds": [
@@ -26,24 +17,6 @@
       "whales-long"
     ],
     "created": 1780185010
-  },
-  {
-    "id": "w8nwf",
-    "coin": "HYPE",
-    "conds": [
-      "price<60",
-      "whales-long"
-    ],
-    "created": 1780185091
-  },
-  {
-    "id": "w8vkf",
-    "coin": "HYPE",
-    "conds": [
-      "price<60",
-      "whales-long"
-    ],
-    "created": 1780294276
   },
   {
     "id": "wle1u",
