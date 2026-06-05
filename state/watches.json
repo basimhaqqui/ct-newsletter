@@ -70,5 +70,13 @@
       "price<400"
     ],
     "created": 1780691809
+  },
+  {
+    "id": "wgfm8",
+    "coin": "VVV",
+    "conds": [
+      "price<12"
+    ],
+    "created": 1780692698
   }
 ]
