@@ -62,6 +62,20 @@ async function candles(coin, interval, count) {
 const ema = (a, p) => { const k = 2 / (p + 1); let e = a[0]; for (let i = 1; i < a.length; i++) e = a[i] * k + e * (1 - k); return e; };
 const rsi = (a, p = 14) => { let g = 0, l = 0; for (let i = a.length - p; i < a.length; i++) { const d = a[i] - a[i - 1]; if (d >= 0) g += d; else l -= d; } return 100 - 100 / (1 + g / (l || 1e-9)); };
 
+// CoinGecko fallback for coins NOT on Hyperliquid (Solana/long-tail tokens on Bullpen).
+// Resolves ticker → CG id (best symbol match by market cap), returns daily/hourly closes.
+async function cgResolve(coin) {
+  const r = await fetch(`${CG}/search?query=${encodeURIComponent(coin)}`); if (!r.ok) return null;
+  const j = await r.json(); const sym = coin.toLowerCase();
+  const exact = (j.coins || []).filter((c) => (c.symbol || "").toLowerCase() === sym);
+  const pick = (exact.length ? exact : j.coins || []).sort((a, b) => (a.market_cap_rank || 1e9) - (b.market_cap_rank || 1e9))[0];
+  return pick ? { id: pick.id, name: pick.name, symbol: (pick.symbol || coin).toUpperCase() } : null;
+}
+async function cgCloses(id, days) {
+  const r = await fetch(`${CG}/coins/${id}/market_chart?vs_currency=usd&days=${days}`); if (!r.ok) return null;
+  const j = await r.json(); return (j.prices || []).map((p) => +p[1]);
+}
+
 async function callClaude(env, { model, system, messages, tools, max_tokens }) {
   const body = { model, max_tokens, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], messages };
   if (tools) body.tools = tools.map((t, i) => (i === tools.length - 1 ? { ...t, cache_control: { type: "ephemeral" } } : t));
@@ -88,7 +102,7 @@ const TOOLS = [
   { name: "get_wallets", description: "Current positions of all tracked Hyperliquid whale wallets + where they reach consensus. Use for 'what are the whales doing', 'are they long X', positioning questions.", input_schema: { type: "object", properties: {} } },
   { name: "get_coin", description: "Live price, 24h change, perp funding (annualized %), and open interest for one coin. Quick price/funding lookups.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
   { name: "get_market", description: "Snapshot of BTC/ETH/SOL/HYPE prices + 24h change.", input_schema: { type: "object", properties: {} } },
-  { name: "technical_analysis", description: "Deep multi-timeframe technical read for a coin (trend, RSI, key levels, funding, and whether the tracked whales confirm). Use whenever the user asks for analysis, 'what's the play', an entry, levels, or whether to buy/sell. Returns a finished expert read — present it to the user as-is.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
+  { name: "technical_analysis", description: "Deep multi-timeframe technical read for ANY coin the user can trade on Bullpen. HL-listed coins (230+ perps) get full data: trend, RSI, key levels, funding, whale confirmation. Non-HL coins (Solana/long-tail spot) auto-fall back to a CoinGecko price-action read (no funding/whales). Use whenever the user asks for analysis, 'what's the play', an entry, levels, or whether to buy/sell — never refuse a ticker, just call this. Returns a finished expert read — present it as-is.", input_schema: { type: "object", properties: { coin: { type: "string" } }, required: ["coin"] } },
   { name: "position_size", description: "Risk-based position sizing. Given coin, dollar risk, stop price (and optional entry), returns units + notional.", input_schema: { type: "object", properties: { coin: { type: "string" }, risk: { type: "number" }, stop: { type: "number" }, entry: { type: "number" } }, required: ["coin", "risk", "stop"] } },
   { name: "set_watch", description: "Create a one-shot alert that fires when ALL conditions hold (checked ~every 30 min). Conditions are strings like 'price<55', 'rsi<50', 'funding>50', 'whales-long', 'whales-short'.", input_schema: { type: "object", properties: { coin: { type: "string" }, conditions: { type: "array", items: { type: "string" } } }, required: ["coin", "conditions"] } },
   { name: "paper_open", description: "Record a HYPOTHETICAL (paper) trade for practice — NOT a real order. Use when the user wants to simulate entering (e.g. 'paper long hype $1000 stop 48'). Entry defaults to current price if not given.", input_schema: { type: "object", properties: { coin: { type: "string" }, side: { type: "string", enum: ["long", "short"] }, notional: { type: "number", description: "position size in USD" }, entry: { type: "number" }, stop: { type: "number" } }, required: ["coin", "side", "notional"] } },
@@ -119,7 +133,12 @@ async function execTool(env, chatId, name, input) {
     return lines.join("\n") + (consensus.length ? "\nCONSENSUS: " + consensus.join("; ") : "");
   }
   if (name === "get_coin") {
-    const mk = await midKey(input.coin); if (!mk) return `${input.coin} is not an HL perp/spot market (likely a Solana/long-tail token on Bullpen) — no funding/whale data. Don't tell the user it's "noise"; offer general price-action TA if they want it.`;
+    const mk = await midKey(input.coin);
+    if (!mk) {
+      const meta = await cgResolve(input.coin); const dc = meta ? await cgCloses(meta.id, 2) : null; const px = dc && dc.length ? dc[dc.length - 1] : null;
+      if (px) return `${meta.symbol} $${pxf(px)} (CoinGecko spot — not an HL perp, so no funding/OI; tradeable on Bullpen. Offer price-action TA via technical_analysis if they want a read).`;
+      return `${input.coin} not found on HL or CoinGecko — check the ticker.`;
+    }
     const f = await fundingOI(mk.key);
     return `${mk.key}: $${pxf(mk.price)}${f ? ` · funding ${f.fundingAnnual.toFixed(0)}%/yr · OI ${usd(f.oi)}` : ""}`;
   }
@@ -197,7 +216,7 @@ async function execTool(env, chatId, name, input) {
 
 // Deep tool: gather data + nested Opus call → finished read
 async function technicalAnalysis(env, chatId, coin) {
-  const mk = await midKey(coin); if (!mk) return `${coin} isn't on Hyperliquid (probably a Solana/long-tail token tradeable on Bullpen). I can't pull HL funding/whale data for it. Tell the user that plainly and offer to do general price-action TA instead — do NOT call it "noise" or imply it isn't worth trading.`;
+  const mk = await midKey(coin); if (!mk) return technicalAnalysisCG(env, chatId, coin); // not on HL → CoinGecko price-action fallback
   await typing(env, chatId); // deep read is the slow step (~10s Opus call) — keep the indicator alive
   const key = mk.key;
   const d1 = await candles(key, "1d", 60), h4 = await candles(key, "4h", 80);
@@ -226,9 +245,38 @@ Be direct and specific. State a <b>conviction</b> (low/med/high) and never prete
   return (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
 }
 
+// Fallback TA for coins not on HL: CoinGecko price action only (no funding/OI/whales).
+async function technicalAnalysisCG(env, chatId, coin) {
+  const meta = await cgResolve(coin);
+  if (!meta) return `Couldn't find ${coin} on Hyperliquid OR CoinGecko — double-check the ticker.`;
+  await typing(env, chatId); // CG fetch + Opus call is the slow step
+  const dc = await cgCloses(meta.id, 365), hc = await cgCloses(meta.id, 14); // daily + hourly closes
+  if (!dc || dc.length < 35) return `Found ${meta.name} (${meta.symbol}) but couldn't pull enough price history for a clean read.`;
+  const px = dc[dc.length - 1], h4 = (hc || []).filter((_, i) => i % 4 === 0), last14 = dc.slice(-14);
+  const data = {
+    coin: meta.symbol, name: meta.name, price: px,
+    source: "CoinGecko spot — NO perp funding/OI, NO whale data (Bullpen long-tail/Solana token, not on HL)",
+    change_24h_7d_30d: [((px / dc[dc.length - 2] - 1) * 100).toFixed(1), ((px / dc[dc.length - 8] - 1) * 100).toFixed(1), ((px / dc[dc.length - 31] - 1) * 100).toFixed(1)],
+    rsi_1d: Math.round(rsi(dc)), rsi_4h: h4.length > 16 ? Math.round(rsi(h4)) : null,
+    ema20_1d: +ema(dc.slice(-40), 20).toFixed(6), ema50_1d: +ema(dc.slice(-55), 50).toFixed(6),
+    resistance_approx: +Math.max(...last14).toFixed(6), support_approx: +Math.min(...last14).toFixed(6),
+  };
+  const sys = `You are a sharp crypto trader writing a SHORT Telegram read (HTML: <b>,<i>,<a> only) for ${meta.symbol} (${meta.name}) — a token the user trades on Bullpen that is NOT on Hyperliquid, so you have CoinGecko PRICE ACTION ONLY: no perp funding, no open interest, no whale positioning, and levels are approximate (from spot closes). Be upfront it's technicals-only. LEAD WITH THE TRADE — don't bury it.
+
+Structure:
+1) <b>Setup</b>: one line — <b>LONG</b>, <b>SHORT</b>, or <b>NO TRADE</b>. Weigh short and long EQUALLY.
+2) <b>Entry / Stop / Target</b>: concrete numbers from the price action.
+3) <b>Why</b>: trend (daily EMA20/50), momentum (RSI 1d/4h), recent 30d range. Explicitly note you lack funding/whale confirmation.
+4) <b>Invalidation</b>: the level that kills the thesis.
+
+State a <b>conviction</b> (low/med/high) — lean LOWER than usual since you have no funding/whale confirmation, only spot price. Never pretend certainty; if no clean edge say "no trade — wait for X". End with "<i>Price-action only · no funding/whale data · not advice · manage risk.</i>". Output only the read — no preamble, no code fences. Under ~220 words.`;
+  const j = await callClaude(env, { model: TA_MODEL, system: sys, max_tokens: 1500, messages: [{ role: "user", content: "Data:\n" + JSON.stringify(data, null, 2) }] });
+  return (j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+}
+
 const SYSTEM = `You are the user's personal Crypto Twitter + Hyperliquid trading cockpit, accessed via Telegram chat. You help them read the market and their tracked on-chain whale wallets, and you drive their bot's tools.
 
-WHERE THE USER TRADES: the user trades on Bullpen. Bullpen's perps route through Hyperliquid (same 230+ perp markets), so your HL data — price, funding, OI, whale positioning — applies DIRECTLY to their Bullpen perp trades. Treat the full HL perp universe (230+ coins: BTC, ETH, SOL, ZEC, and most majors/alts) as in-scope and tradeable for them. Bullpen also has some Solana/spot long-tail tokens that aren't on HL — for those you have price-only data, not funding/whales.
+WHERE THE USER TRADES: the user trades on Bullpen. Bullpen's perps route through Hyperliquid (same 230+ perp markets), so your HL data — price, funding, OI, whale positioning — applies DIRECTLY to their Bullpen perp trades. Treat the full HL perp universe (230+ coins: BTC, ETH, SOL, ZEC, and most majors/alts) as in-scope and tradeable for them. Bullpen also has Solana/spot long-tail tokens that aren't on HL — for those, technical_analysis STILL works (it auto-falls back to a CoinGecko price-action read), it just won't have funding/whale data. So you can analyze ANY ticker the user names; never refuse one.
 
 NEVER claim a coin is "not on HL", "not available", "not on your platform", or "off-chain noise" from memory — you will be wrong (HL lists 230+ perps). If the user names ANY ticker, CHECK it first by calling get_coin (or technical_analysis). Only say a coin is unavailable if a tool actually returns "No HL market" — and even then, offer the TA you CAN do. Never dismiss a setup you haven't verified, and never editorialize a coin as "noise."
 
