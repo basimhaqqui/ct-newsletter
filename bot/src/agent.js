@@ -302,12 +302,16 @@ export async function runAgent(env, chatId, userText) {
   const sys = SYSTEM + (profile.notes?.length ? `\n\n<known_about_user>\n${profile.notes.map((n) => "- " + n).join("\n")}\n</known_about_user>` : "");
   try {
     await typing(env, chatId); // immediate "got it, working…" signal
+    let lastTool = ""; // most recent tool output — fallback if the model ends a turn with no text
     for (let i = 0; i < 5; i++) {
       await typing(env, chatId);
-      const resp = await callClaude(env, { model: CHAT_MODEL, system: sys, tools: TOOLS, max_tokens: 1024, messages });
+      const resp = await callClaude(env, { model: CHAT_MODEL, system: sys, tools: TOOLS, max_tokens: 1500, messages });
       messages.push({ role: "assistant", content: resp.content });
       if (resp.stop_reason !== "tool_use") {
-        const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim() || "…";
+        // Model ended its turn. If it produced no text (it sometimes does right after a
+        // tool call), relay what the tool did instead of an empty "…".
+        const textOut = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+        const text = textOut || lastTool || "Done.";
         await tg(env, chatId, text);
         const newHist = [...history, { role: "user", content: userText }, { role: "assistant", content: text }].slice(-8);
         if (env.MEMORY) { try { await env.MEMORY.put(`chat:${chatId}`, JSON.stringify(newHist), { expirationTtl: KV_TTL }); } catch {} }
@@ -316,9 +320,11 @@ export async function runAgent(env, chatId, userText) {
       const results = [];
       await typing(env, chatId); // tools (esp. the Opus deep-analysis) can take several seconds
       for (const b of resp.content) if (b.type === "tool_use") { let out; try { out = await execTool(env, chatId, b.name, b.input || {}); } catch (e) { out = `tool error: ${e.message}`; } results.push({ type: "tool_result", tool_use_id: b.id, content: String(out).slice(0, 6000) }); }
+      lastTool = results.map((r) => r.content).join("\n").slice(0, 3500); // keep latest tool output for the empty-turn fallback
       messages.push({ role: "user", content: results });
     }
-    await tg(env, chatId, "Hit my reasoning limit on that — try asking more directly?");
+    // Ran out of tool-loop iterations — surface the last tool output rather than a vague apology.
+    await tg(env, chatId, lastTool || "Hit my reasoning limit on that — try asking more directly?");
   } catch (e) {
     const msg = (e.status === 429 || e.status === 529 || /rate.?limit|overloaded/i.test(e.message))
       ? "⏳ Rate-limited (a lot of requests in a short window). Give it ~30s and resend — or send one message at a time."
