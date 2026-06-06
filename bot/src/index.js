@@ -41,8 +41,13 @@ export default {
     try { update = await request.json(); } catch { return new Response("ok"); }
     const msg = update.message || update.edited_message;
     const chatId = msg?.chat?.id;
-    const text = (msg?.text || "").trim();
+    const text = (msg?.text || msg?.caption || "").trim(); // caption = text sent with a photo
     if (!chatId || String(chatId) !== String(env.TELEGRAM_CHAT_ID)) return new Response("ok");
+    // Image? (photo, or an image sent as a document) → hand the file_id to the agent for a vision read.
+    const photo = msg?.photo?.length ? msg.photo[msg.photo.length - 1] : null; // last = highest resolution
+    const imgDoc = msg?.document?.mime_type?.startsWith("image/") ? msg.document : null;
+    const fileId = photo?.file_id || imgDoc?.file_id || null;
+    if (fileId) { ctx.waitUntil(runAgent(env, chatId, text, fileId)); return new Response("ok"); }
     if (!text) return new Response("ok");
     // Slash commands → fast deterministic handlers. Plain English → conversational agent.
     if (text.startsWith("/")) ctx.waitUntil(handle(text, chatId, env));

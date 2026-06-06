@@ -282,6 +282,8 @@ NEVER claim a coin is "not on HL", "not available", "not on your platform", or "
 
 Style: concise, direct, a little sharp — like a sharp trading buddy texting back. Plain text or light Telegram HTML (<b>, <i>). No long essays.
 
+IMAGES: the user can send screenshots. Read them. Common ones: a price chart (read the trend/levels, but for a real call prefer technical_analysis on the ticker — your live data beats reading pixels), an open position / P&L (note entry, size, side, current P&L, and advise on the trade), a tweet/CT post (summarize the take and whether it's actionable), or a bot/exchange alert. Pull the ticker and numbers out of the image and act on them. If the image is unrelated to trading, just say what it is briefly.
+
 Use tools to answer with REAL data — never guess prices, positions, levels, OR whether a coin is tradeable. For any analysis / "what's the play" / entry / buy-or-sell question, call technical_analysis and present its read (it's an expert Opus analysis — relay it, don't rewrite or second-guess it). For positioning questions use get_wallets. For quick prices use get_coin/get_market. For sizing use position_size. To set alerts use set_watch. To run the digest/scorecard/smartmoney/leaderboard or scrape X, use run_job.
 
 Memory: you have long-term memory about this user — anything in <known_about_user> below is what you already know. Reference it naturally (e.g. use their saved default risk size when sizing; mention their open positions). Use the remember tool when they share a durable fact (HL wallet, default risk, an open position, a preference); use forget when something changes (closed a position, new risk size — forget the stale note, remember the new). Don't remember market data or one-off chatter.
@@ -292,11 +294,22 @@ Be DIRECT and actionable — when there's a setup, name it (long, short, or no-t
 
 const KV_TTL = 7200; // 2h conversation memory
 
-export async function runAgent(env, chatId, userText) {
+export async function runAgent(env, chatId, userText, imageFileId) {
   if (!env.ANTHROPIC_API_KEY) return tg(env, chatId, "⚠️ Conversational mode needs ANTHROPIC_API_KEY set on the worker.");
   let history = [];
   try { if (env.MEMORY) history = JSON.parse((await env.MEMORY.get(`chat:${chatId}`)) || "[]"); } catch {}
-  const messages = [...history, { role: "user", content: userText }];
+  // If the user sent a photo/screenshot, attach it as a vision block alongside their caption.
+  let userContent = userText, histText = userText;
+  if (imageFileId) {
+    await typing(env, chatId); // download can take a moment
+    const img = await getTelegramImage(env, imageFileId);
+    histText = userText || "[sent a screenshot]"; // keep KV history text-only (no base64)
+    userContent = img
+      ? [{ type: "image", source: { type: "base64", media_type: img.media_type, data: img.data } },
+         { type: "text", text: userText || "Read this screenshot and tell me what's relevant for trading — if it shows a chart, position, ticker, tweet, or alert, interpret it. If a coin/ticker is identifiable and they'd want a read, call technical_analysis on it." }]
+      : (userText || "(I couldn't load that image — try resending it.)");
+  }
+  const messages = [...history, { role: "user", content: userContent }];
   // Inject long-term profile into the system prompt so the bot "knows" the user.
   const profile = await getProfile(env, chatId);
   const sys = SYSTEM + (profile.notes?.length ? `\n\n<known_about_user>\n${profile.notes.map((n) => "- " + n).join("\n")}\n</known_about_user>` : "");
@@ -313,7 +326,7 @@ export async function runAgent(env, chatId, userText) {
         const textOut = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
         const text = textOut || lastTool || "Done.";
         await tg(env, chatId, text);
-        const newHist = [...history, { role: "user", content: userText }, { role: "assistant", content: text }].slice(-8);
+        const newHist = [...history, { role: "user", content: histText }, { role: "assistant", content: text }].slice(-8);
         if (env.MEMORY) { try { await env.MEMORY.put(`chat:${chatId}`, JSON.stringify(newHist), { expirationTtl: KV_TTL }); } catch {} }
         return;
       }
@@ -334,6 +347,24 @@ export async function runAgent(env, chatId, userText) {
 }
 
 // Build a QuickChart price-line image (price + resistance/support/EMA levels).
+// Download a Telegram photo by file_id → base64 for a Claude vision block.
+function abToBase64(buf) {
+  const bytes = new Uint8Array(buf); let bin = ""; const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(bin);
+}
+async function getTelegramImage(env, fileId) {
+  try {
+    const gf = await (await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`)).json();
+    const path = gf?.result?.file_path; if (!path) return null;
+    const buf = await (await fetch(`https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${path}`)).arrayBuffer();
+    if (buf.byteLength > 4.8e6) return null; // Claude caps images ~5MB
+    const ext = (path.split(".").pop() || "").toLowerCase();
+    const media_type = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : ext === "gif" ? "image/gif" : "image/jpeg";
+    return { data: abToBase64(buf), media_type };
+  } catch { return null; }
+}
+
 // Native "Bot is typing…" indicator — re-fire periodically (it fades after ~5s).
 async function typing(env, chatId) {
   try { await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendChatAction`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chatId, action: "typing" }) }); } catch {}
