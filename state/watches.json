@@ -60,5 +60,13 @@
       "price<12"
     ],
     "created": 1780692698
+  },
+  {
+    "id": "wd07j",
+    "coin": "ZEC",
+    "conds": [
+      "price>420"
+    ],
+    "created": 1780711014
   }
 ]
