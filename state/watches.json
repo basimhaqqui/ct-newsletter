@@ -68,5 +68,13 @@
       "price>420"
     ],
     "created": 1780711014
+  },
+  {
+    "id": "wemk5",
+    "coin": "ZEC",
+    "conds": [
+      "price>405"
+    ],
+    "created": 1780711089
   }
 ]
