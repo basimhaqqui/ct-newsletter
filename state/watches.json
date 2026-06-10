@@ -1,15 +1,5 @@
 [
   {
-    "id": "wfuh9",
-    "coin": "HYPE",
-    "conds": [
-      "price<55",
-      "rsi<60",
-      "whales-long"
-    ],
-    "created": 1780182067
-  },
-  {
     "id": "w6xfl",
     "coin": "BTC",
     "conds": [
