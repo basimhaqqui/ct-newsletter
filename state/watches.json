@@ -9,14 +9,6 @@
     "created": 1780185010
   },
   {
-    "id": "w31ft",
-    "coin": "HYPE",
-    "conds": [
-      "price>75.83"
-    ],
-    "created": 1780357829
-  },
-  {
     "id": "wpilb",
     "coin": "HYPE",
     "conds": [
