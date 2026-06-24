@@ -16,22 +16,5 @@
       "price<50"
     ],
     "created": 1780610820
-  },
-  {
-    "id": "wq5qr",
-    "coin": "VVV",
-    "conds": [
-      "price>10",
-      "price<12"
-    ],
-    "created": 1780610850
-  },
-  {
-    "id": "wgfm8",
-    "coin": "VVV",
-    "conds": [
-      "price<12"
-    ],
-    "created": 1780692698
   }
 ]
