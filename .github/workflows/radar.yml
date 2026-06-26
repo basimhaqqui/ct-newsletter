@@ -1,11 +1,11 @@
 name: Trending Coin Radar
 
-# Scans CT every 6h for coins spiking in viral mentions; alerts on new movers.
-# Each run is one Apify call — tighten to */4 or */3 for faster catch (more cost),
-# or loosen to */8 to save. Also runnable on demand via the bot's /radar.
+# Scans CT every 12h for coins spiking in viral mentions; alerts on new movers.
+# Each run is one Apify call — tighten to */6 or */4 for faster catch (more cost),
+# or loosen to "0 0 * * *" (daily) to save. Also runnable on demand via the bot's /radar.
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */12 * * *"
   workflow_dispatch: {}
 
 permissions:
