@@ -27,9 +27,10 @@ try {
   if (!APIFY_TOKEN) throw new Error("missing APIFY_TOKEN");
   const since = String(Math.floor((Date.now() - HOURS * 3600 * 1000) / 1000));
   const q = `(crypto OR altcoin OR memecoin OR pump OR gem OR ape OR "low cap") min_faves:${MIN_FAVES} -is:reply -is:retweet lang:en`;
-  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
+  // maxItems is the platform charge cap — actor reads it from the query string, not the body.
+  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&maxItems=120`;
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchTerms: [q], maxItems: 120, queryType: "Latest", since_time: since }) });
-  if (!res.ok) throw new Error(`Apify ${res.status}`);
+  if (!res.ok) { const b = await res.text(); throw new Error(`Apify ${res.status} ${b.match(/"type":\s*"([^"]+)"/)?.[1] || b.slice(0, 80)}`); }
   const raw = (await res.json()).filter((t) => t && t.text && !/From KaitoEasyAPI/i.test(t.text) && !t.isReply && !t.retweeted_tweet);
 
   // tally engagement-weighted viral mentions per cashtag

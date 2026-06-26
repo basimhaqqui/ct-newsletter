@@ -37,7 +37,7 @@ function clean(t) {
   };
 }
 async function apify(input) {
-  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`;
+  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&maxItems=${input.maxItems || 50}`;
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
   if (!r.ok) throw new Error(`Apify ${r.status}: ${(await r.text()).slice(0, 100)}`);
   const raw = await r.json();

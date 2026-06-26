@@ -20,7 +20,7 @@ const QUERY =
 const sinceSec = String(Math.floor((Date.now() - HOURS * 3600 * 1000) / 1000));
 const input = { searchTerms: [QUERY], maxItems: MAX_ITEMS, queryType: "Latest", since_time: sinceSec };
 
-const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}`;
+const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}&maxItems=${input.maxItems || 50}`;
 const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
 if (!res.ok) { console.error(`Apify ${res.status}: ${await res.text()}`); process.exit(1); }
 const raw = await res.json();

@@ -36,7 +36,8 @@ const cutoff = Date.now() - HOURS * 3600 * 1000;
 // One Apify call → cleaned, source-tagged tweets. Returns [] on failure so one
 // dead source never sinks the whole digest.
 async function pull(input, source) {
-  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}`;
+  // maxItems is the platform charge cap — actor reads it from the query string, not the body.
+  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}&maxItems=${input.maxItems || 50}`;
   let raw;
   try {
     const res = await fetch(url, {

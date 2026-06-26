@@ -20,7 +20,7 @@ const input = {
   maxItems: Number(process.env.MAX_FOLLOWING || 1000),
 };
 
-const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}`;
+const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}&maxItems=${input.maxItems || 1000}`;
 const res = await fetch(url, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
