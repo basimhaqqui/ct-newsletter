@@ -2,24 +2,24 @@
   "coins": {
     "BTC": {
       "pctLong": 0.188,
-      "traders": 22,
-      "netN": -16283809
+      "traders": 23,
+      "netN": -16705168
     },
     "ETH": {
-      "pctLong": 0.056,
-      "traders": 14,
-      "netN": -12589567
+      "pctLong": 0.061,
+      "traders": 13,
+      "netN": -11457885
     },
     "HYPE": {
       "pctLong": 0.463,
       "traders": 7,
-      "netN": -249868
+      "netN": -249907
     },
     "SOL": {
-      "pctLong": 0.066,
-      "traders": 8,
-      "netN": -1315944
+      "pctLong": 0.083,
+      "traders": 7,
+      "netN": -1272568
     }
   },
-  "updatedAt": 1782526283
+  "updatedAt": 1782548741
 }
