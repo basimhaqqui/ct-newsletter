@@ -16,5 +16,13 @@
       "price<50"
     ],
     "created": 1780610820
+  },
+  {
+    "id": "wrnot",
+    "coin": "SOL",
+    "conds": [
+      "price<77"
+    ],
+    "created": 1783541850
   }
 ]
