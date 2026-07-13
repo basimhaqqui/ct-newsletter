@@ -3,18 +3,13 @@
     "ETH": {
       "pctLong": 0.982,
       "traders": 4,
-      "netN": 8032794
+      "netN": 8011474
     },
     "HYPE": {
-      "pctLong": 0.417,
-      "traders": 5,
-      "netN": -707049
-    },
-    "LIT": {
-      "pctLong": 1,
+      "pctLong": 0.449,
       "traders": 4,
-      "netN": 1548011
+      "netN": -355234
     }
   },
-  "updatedAt": 1783951479
+  "updatedAt": 1783969902
 }
