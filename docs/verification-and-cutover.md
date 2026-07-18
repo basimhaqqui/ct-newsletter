@@ -112,6 +112,50 @@ the §5.5 evidence that must accrue in shadow. No spec violations found.
 
 ---
 
+## 7. Go-live status — 2026-07-18 (shadow mode enabled)
+
+Checklist executed on the primary dev machine (macOS, Node 25, pnpm 10.33):
+
+1. **Baseline** — `pnpm typecheck` 0 errors; `pnpm vitest run packages`
+   **160 passed / 16 skipped (176)**. Env fixes required: root workspace had no
+   toolchain, so `typescript@5.4.5` + `vitest@~1.6` were pinned as root devDeps;
+   root tsconfig needed `ignoreDeprecations` "6.0"→"5.0" (TS 5.4 rejects "6.0")
+   and `resolveJsonModule` (per-package tsconfigs had it, the root aggregate did not).
+2. **Live smoke** — first run SMOKE_FAIL: live Hyperliquid returns
+   `impactPxs: null` for some of the 232 assets and `normalizeAssetCtxs` crashed
+   (fixtures never covered null). Fixed with a null-safe fallback in the adapter
+   (impactBid/impactAsk are not consumed downstream) and `impactPxs` typed
+   nullable; all 60 adapter tests still pass. Re-run: **SMOKE_PASS** — 232
+   observations, 3 whale positions, 24 BTC 1h candles, hyperliquid + sec_edgar
+   healthy, 2 live CROWD_FUNDING_EXTREME signals to console.
+3. **Live Postgres** — Docker `postgres:16` (container `mi-pg`); pg-factory
+   round-trip green, migrations 001–014 auto-applied. Note: the opt-in
+   `RUN_DB_INTEGRATION=1` suite in `packages/db/test/migrations.test.ts` is
+   stale (hardcodes 13 migrations, pre-candles) and is not run by CI's
+   test-postgres job, which only sets `DATABASE_URL`; left untouched.
+4. **First real cycle** — `daily start` with `DATABASE_URL`: 3 signals fired
+   (CROWD_FUNDING_EXTREME ×2, POS_WHALE_CONSENSUS on HYPE). Rows verified in
+   Postgres: app_signals=3, observations=232, candles=676, positioning=7,
+   source-health present. All payloads `origin:"deterministic"`, narration null.
+5. **Shadow mode** — v2 tree committed and pushed (`ad5f075`). Workflows copied
+   to repo-root `.github/workflows/` (Actions ignores the nested copy under
+   `v2/.github/`). **v2 CI green** on push (typecheck + suite) and **v2-cycle
+   green** via manual workflow_dispatch — the cloud run ingested live data and
+   fired the same 3 signals (console fallback, no shadow chat yet). The 30-min
+   schedule is now live. Added an optional `V2_DATABASE_URL` passthrough to
+   v2-cycle.yml: without it every cycle is in-memory, signals do not persist
+   across runs, and the graded ledger cannot accrue — §5.5 evidence therefore
+   requires a hosted Postgres before the shadow clock meaningfully starts.
+6. **Pending (operator):** create the separate shadow Telegram chat and set
+   `V2_SHADOW_CHAT_ID`; set `ALPACA_API_KEY`/`ALPACA_API_SECRET` (stock jobs
+   are skipped without them); provision a hosted Postgres and set
+   `V2_DATABASE_URL`; optionally pass `APIFY_TOKEN` (already a repo secret)
+   through v2-cycle.yml env for mention-spike signals — deliberately not wired
+   yet since a 30-min Apify cadence has real per-run cost. v1 untouched and
+   still running.
+
+---
+
 *Reproduce: `cd v2 && pnpm install && pnpm typecheck && pnpm vitest run packages`
 (add `DATABASE_URL` to include the live-Postgres suite). Smoke:
 `pnpm --filter @market-intel/daily exec tsx src/smoke.ts`.*
