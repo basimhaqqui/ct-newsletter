@@ -14,6 +14,7 @@ export function createPool(config: {
   max?: number;
   idleTimeoutMillis?: number;
   connectionTimeoutMillis?: number;
+  ssl?: pg.PoolConfig['ssl'];
 }): pg.Pool {
   if (pool) {
     return pool;
@@ -28,6 +29,7 @@ export function createPool(config: {
     max: config.max || 10,
     idleTimeoutMillis: config.idleTimeoutMillis || 30000,
     connectionTimeoutMillis: config.connectionTimeoutMillis || 5000,
+    ssl: config.ssl,
   });
 
   pool.on('error', (err) => {

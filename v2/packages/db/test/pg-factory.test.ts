@@ -27,12 +27,14 @@ function obs(id: string, price: number, t: Date): ObservationRow {
 d('pg RepositoryFactory (live database)', () => {
   it('migrates, round-trips core rows, and enforces idempotency', async () => {
     const url = new URL(DB_URL!);
+    const sslmode = url.searchParams.get('sslmode');
     createPool({
       host: url.hostname,
       port: Number(url.port || 5432),
       database: url.pathname.slice(1),
       user: decodeURIComponent(url.username),
       password: decodeURIComponent(url.password),
+      ssl: sslmode && sslmode !== 'disable' ? { rejectUnauthorized: false } : undefined,
     });
     const runner = new MigrationRunner();
     await runner.migrate();
