@@ -1,0 +1,64 @@
+{
+  "assets": [
+    {
+      "id": "AAPL",
+      "class": "us_equity",
+      "exchange": "NASDAQ",
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "status": "active",
+      "tradable": true,
+      "marginable": true,
+      "shortable": true,
+      "easyToBorrow": true,
+      "fractionable": true,
+      "minOrderSize": "0.001",
+      "maxOrderSize": "1000000"
+    },
+    {
+      "id": "MSFT",
+      "class": "us_equity",
+      "exchange": "NASDAQ",
+      "symbol": "MSFT",
+      "name": "Microsoft Corporation",
+      "status": "active",
+      "tradable": true,
+      "marginable": true,
+      "shortable": true,
+      "easyToBorrow": true,
+      "fractionable": true,
+      "minOrderSize": "0.001",
+      "maxOrderSize": "1000000"
+    },
+    {
+      "id": "TSLA",
+      "class": "us_equity",
+      "exchange": "NASDAQ",
+      "symbol": "TSLA",
+      "name": "Tesla, Inc.",
+      "status": "active",
+      "tradable": true,
+      "marginable": true,
+      "shortable": true,
+      "easyToBorrow": true,
+      "fractionable": true,
+      "minOrderSize": "0.001",
+      "maxOrderSize": "1000000"
+    },
+    {
+      "id": "SPY",
+      "class": "etf",
+      "exchange": "NYSE_ARCA",
+      "symbol": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "status": "active",
+      "tradable": true,
+      "marginable": true,
+      "shortable": true,
+      "easyToBorrow": true,
+      "fractionable": true,
+      "minOrderSize": "0.001",
+      "maxOrderSize": "1000000"
+    }
+  ]
+}

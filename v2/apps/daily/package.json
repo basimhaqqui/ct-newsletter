@@ -1,0 +1,23 @@
+{
+  "name": "@market-intel/daily",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@adapters/core": "workspace:*",
+    "@market-intel/db": "workspace:*",
+    "@market-intel/ingestion": "workspace:*",
+    "@market-intel/orchestrator": "workspace:*",
+    "@market-intel/signal-engine": "workspace:*",
+    "@market-intel/telegram": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

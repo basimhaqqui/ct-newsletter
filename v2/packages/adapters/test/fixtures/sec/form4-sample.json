@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "X0306",
+  "documentType": "4",
+  "periodOfReport": "2024-01-15",
+  "notSubjectToSection16": "0",
+  "issuer": {
+    "issuerCik": "0000320193",
+    "issuerName": "Apple Inc.",
+    "issuerTradingSymbol": "AAPL"
+  },
+  "reportingOwner": {
+    "reportingOwnerId": {
+      "rptOwnerCik": "0001417755",
+      "rptOwnerName": "Cook Timothy D"
+    },
+    "reportingOwnerAddress": {
+      "rptOwnerStreet1": "ONE APPLE PARK WAY",
+      "rptOwnerCity": "CUPERTINO",
+      "rptOwnerState": "CA",
+      "rptOwnerZipCode": "95014",
+      "rptOwnerStateDescription": "California"
+    },
+    "reportingOwnerRelationship": {
+      "isDirector": "1",
+      "isOfficer": "1",
+      "isTenPercentOwner": "0",
+      "officerTitle": "Chief Executive Officer"
+    }
+  },
+  "nonDerivativeTable": [
+    {
+      "securityTitle": { "value": "Common Stock" },
+      "transactionDate": { "value": "2024-01-12" },
+      "transactionCode": { "value": "M" },
+      "transactionTimeliness": { "value": "" },
+      "transactionShares": { "value": "100000" },
+      "transactionPricePerShare": { "value": "0.0000" },
+      "transactionAcquiredDisposedCode": { "value": "A" },
+      "postTransactionAmounts": {
+        "sharesOwnedFollowingTransaction": { "value": "3373327" }
+      },
+      "ownershipNature": {
+        "directOrIndirectOwnership": { "value": "D" }
+      }
+    },
+    {
+      "securityTitle": { "value": "Common Stock" },
+      "transactionDate": { "value": "2024-01-12" },
+      "transactionCode": { "value": "F" },
+      "transactionTimeliness": { "value": "" },
+      "transactionShares": { "value": "48321" },
+      "transactionPricePerShare": { "value": "185.5000" },
+      "transactionAcquiredDisposedCode": { "value": "D" },
+      "postTransactionAmounts": {
+        "sharesOwnedFollowingTransaction": { "value": "3325006" }
+      },
+      "ownershipNature": {
+        "directOrIndirectOwnership": { "value": "D" }
+      }
+    },
+    {
+      "securityTitle": { "value": "Common Stock" },
+      "transactionDate": { "value": "2024-01-10" },
+      "transactionCode": { "value": "S" },
+      "transactionTimeliness": { "value": "" },
+      "transactionShares": { "value": "50000" },
+      "transactionPricePerShare": { "value": "187.2500" },
+      "transactionAcquiredDisposedCode": { "value": "D" },
+      "postTransactionAmounts": {
+        "sharesOwnedFollowingTransaction": { "value": "3275006" }
+      },
+      "ownershipNature": {
+        "directOrIndirectOwnership": { "value": "D" }
+      }
+    }
+  ],
+  "derivativeTable": [
+    {
+      "securityTitle": { "value": "Stock Option (Right to Buy)" },
+      "conversionOrExercisePrice": { "value": "150.0000" },
+      "transactionDate": { "value": "2024-01-12" },
+      "transactionCode": { "value": "M" },
+      "transactionTimeliness": { "value": "" },
+      "numberOfDerivativeSecurities": { "value": "100000" },
+      "exerciseDate": { "value": "2022-01-15" },
+      "expirationDate": { "value": "2032-01-15" },
+      "underlyingSecurity": {
+        "underlyingSecurityTitle": { "value": "Common Stock" },
+        "underlyingSecurityShares": { "value": "100000" }
+      },
+      "postTransactionAmounts": {
+        "sharesOwnedFollowingTransaction": { "value": "500000" }
+      },
+      "ownershipNature": {
+        "directOrIndirectOwnership": { "value": "D" }
+      }
+    }
+  ],
+  "signature": {
+    "signatureName": "Timothy D. Cook",
+    "signatureDate": "2024-01-15"
+  },
+  "accessionNumber": "0001193125-24-000123"
+}

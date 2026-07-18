@@ -1,0 +1,29 @@
+{
+  "type": "meta",
+  "universe": [
+    {
+      "name": "BTC",
+      "szDecimals": 8,
+      "maxLeverage": 50,
+      "onlyIsolated": false
+    },
+    {
+      "name": "ETH",
+      "szDecimals": 8,
+      "maxLeverage": 50,
+      "onlyIsolated": false
+    },
+    {
+      "name": "SOL",
+      "szDecimals": 8,
+      "maxLeverage": 50,
+      "onlyIsolated": false
+    },
+    {
+      "name": "HYPE",
+      "szDecimals": 2,
+      "maxLeverage": 25,
+      "onlyIsolated": false
+    }
+  ]
+}

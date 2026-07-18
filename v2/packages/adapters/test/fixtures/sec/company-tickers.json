@@ -1,0 +1,12 @@
+{
+  "0": { "cik_str": "0000320193", "ticker": "AAPL", "title": "Apple Inc." },
+  "1": { "cik_str": "0000789019", "ticker": "MSFT", "title": "Microsoft Corporation" },
+  "2": { "cik_str": "0001018724", "ticker": "AMZN", "title": "Amazon.com Inc." },
+  "3": { "cik_str": "0001326801", "ticker": "META", "title": "Meta Platforms Inc." },
+  "4": { "cik_str": "0001652044", "ticker": "GOOGL", "title": "Alphabet Inc." },
+  "5": { "cik_str": "0001652044", "ticker": "GOOG", "title": "Alphabet Inc." },
+  "6": { "cik_str": "0001045810", "ticker": "NVDA", "title": "NVIDIA Corporation" },
+  "7": { "cik_str": "0001318605", "ticker": "TSLA", "title": "Tesla Inc." },
+  "8": { "cik_str": "0001418091", "ticker": "JPM", "title": "JPMorgan Chase & Co." },
+  "9": { "cik_str": "0000070858", "ticker": "BAC", "title": "Bank of America Corporation" }
+}

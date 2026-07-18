@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:sec="http://www.sec.gov/edgar">
+  <title>SEC EDGAR Form 4 Filings</title>
+  <updated>2024-01-15T14:30:00Z</updated>
+  <id>https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&count=100&output=atom</id>
+  <link rel="self" href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&count=100&output=atom"/>
+  <entry>
+    <title>Form 4 - 2024-01-15 - Apple Inc.</title>
+    <link href="https://www.sec.gov/Archives/edgar/data/320193/000119312524000123/0001193125-24-000123-index.htm" rel="alternate" type="text/html"/>
+    <id>urn:uuid:12345678-1234-1234-1234-123456789012</id>
+    <updated>2024-01-15T14:30:00Z</updated>
+    <content type="html"><p>Form 4 filed by Timothy D. Cook on 2024-01-15 for Apple Inc. (AAPL)</p></content>
+    <sec:cik>0000320193</sec:cik>
+    <sec:form-type>4</sec:form-type>
+    <sec:filing-date>2024-01-15</sec:filing-date>
+    <sec:period-of-report>2024-01-12</sec:period-of-report>
+  </entry>
+  <entry>
+    <title>Form 4 - 2024-01-15 - Microsoft Corporation</title>
+    <link href="https://www.sec.gov/Archives/edgar/data/789019/000119312524000124/0001193125-24-000124-index.htm" rel="alternate" type="text/html"/>
+    <id>urn:uuid:12345678-1234-1234-1234-123456789013</id>
+    <updated>2024-01-15T14:25:00Z</updated>
+    <content type="html"><p>Form 4 filed by Satya Nadella on 2024-01-15 for Microsoft Corporation (MSFT)</p></content>
+    <sec:cik>0000789019</sec:cik>
+    <sec:form-type>4</sec:form-type>
+    <sec:filing-date>2024-01-15</sec:filing-date>
+    <sec:period-of-report>2024-01-12</sec:period-of-report>
+  </entry>
+  <entry>
+    <title>Form 4 - 2024-01-14 - NVIDIA Corporation</title>
+    <link href="https://www.sec.gov/Archives/edgar/data/1045810/000119312524000125/0001193125-24-000125-index.htm" rel="alternate" type="text/html"/>
+    <id>urn:uuid:12345678-1234-1234-1234-123456789014</id>
+    <updated>2024-01-14T18:00:00Z</updated>
+    <content type="html"><p>Form 4 filed by Jensen Huang on 2024-01-14 for NVIDIA Corporation (NVDA)</p></content>
+    <sec:cik>0001045810</sec:cik>
+    <sec:form-type>4</sec:form-type>
+    <sec:filing-date>2024-01-14</sec:filing-date>
+    <sec:period-of-report>2024-01-11</sec:period-of-report>
+  </entry>
+</feed>

@@ -1,0 +1,24 @@
+{
+  "name": "@market-intel/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest --run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@market-intel/db": "workspace:*",
+    "@market-intel/signal-engine": "workspace:*",
+    "@market-intel/grading-ledger": "workspace:*",
+    "@market-intel/ingestion": "workspace:*",
+    "@market-intel/telegram": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
+  }
+}

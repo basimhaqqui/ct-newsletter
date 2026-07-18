@@ -1,0 +1,54 @@
+{
+  "marginSummary": {
+    "accountValue": "1000000.0",
+    "totalNtlPos": "500000.0",
+    "totalRawUsd": "1000000.0",
+    "totalMarginUsed": "100000.0"
+  },
+  "crossMarginSummary": {
+    "accountValue": "1000000.0",
+    "totalNtlPos": "500000.0",
+    "totalRawUsd": "1000000.0",
+    "totalMarginUsed": "100000.0"
+  },
+  "crossMaintenanceMarginUsed": "50000.0",
+  "withdrawable": "500000.0",
+  "assetPositions": [
+    {
+      "type": "oneWay",
+      "position": {
+        "coin": "BTC",
+        "szi": "2.5",
+        "entryPx": "66000.0",
+        "leverage": {"type": "cross", "value": 10},
+        "positionValue": "167500.0",
+        "unrealizedPnl": "2500.0",
+        "returnOnEquity": "0.025"
+      }
+    },
+    {
+      "type": "oneWay",
+      "position": {
+        "coin": "ETH",
+        "szi": "-50.0",
+        "entryPx": "3750.0",
+        "leverage": {"type": "cross", "value": 20},
+        "positionValue": "190000.0",
+        "unrealizedPnl": "-2500.0",
+        "returnOnEquity": "-0.0125"
+      }
+    },
+    {
+      "type": "oneWay",
+      "position": {
+        "coin": "SOL",
+        "szi": "1000.0",
+        "entryPx": "178.0",
+        "leverage": {"type": "cross", "value": 5},
+        "positionValue": "180000.0",
+        "unrealizedPnl": "2000.0",
+        "returnOnEquity": "0.0111"
+      }
+    }
+  ]
+}

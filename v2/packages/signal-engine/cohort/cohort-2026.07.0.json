@@ -1,0 +1,131 @@
+{
+  "version": "cohort/2026.07.0",
+  "schema_version": "signal/2.0.0",
+  "families": {
+    "POS_WHALE_CONSENSUS": {
+      "consensus_min": 3,
+      "min_notional_usd": 25000,
+      "reference_notional_usd": 1000000,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 3600
+    },
+    "POS_WHALE_FLIP": {
+      "min_notional_usd": 25000,
+      "reference_notional_usd": 1000000,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 3600
+    },
+    "POS_SMARTMONEY_SHIFT": {
+      "strong_consensus": 0.7,
+      "swing": 0.2,
+      "flip_min_usd": 1000000,
+      "min_traders": 4,
+      "min_notional_usd": 25000,
+      "reference_notional_usd": 10000000,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 3600
+    },
+    "POS_INSIDER_CLUSTER": {
+      "min_insiders": 3,
+      "window_s": 1209600,
+      "min_aggregate_usd": 500000,
+      "reference_notional_usd": 5000000,
+      "cooldown_s": 604800,
+      "max_useful_latency_s": 259200
+    },
+    "POS_CONGRESS_DISCLOSURE": {
+      "min_trade_usd": 50000,
+      "cluster_min": 2,
+      "window_s": 1209600,
+      "reference_notional_usd": 1000000,
+      "cooldown_s": 604800,
+      "max_useful_latency_s": 2592000
+    },
+    "CROWD_DIVERGENCE": {
+      "consensus_min": 3,
+      "min_notional_usd": 25000,
+      "funding_pos": 35,
+      "funding_neg": -3,
+      "oi_floor_usd": 10000000,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 3600
+    },
+    "CROWD_MENTION_SPIKE": {
+      "min_mentions": 3,
+      "spike_ratio": 2.5,
+      "ema_alpha": 0.4,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 21600
+    },
+    "CROWD_FUNDING_EXTREME": {
+      "funding_pos": 35,
+      "funding_neg": -35,
+      "oi_floor_usd": 10000000,
+      "funding_norm_pct": 100,
+      "cooldown_s": 14400,
+      "max_useful_latency_s": 3600
+    },
+    "CATALYST_UPCOMING": {
+      "lead_s": 259200,
+      "settle_s": 86400,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 86400,
+      "event_weights": {
+        "fomc": 1.0,
+        "cpi": 0.95,
+        "nfp": 0.85,
+        "ppi": 0.7,
+        "earnings": 0.9,
+        "token_unlock": 0.8,
+        "mainnet_launch": 0.75,
+        "protocol_upgrade": 0.7,
+        "exchange_listing": 0.7,
+        "sec_filing_deadline": 0.5,
+        "options_expiry": 0.4,
+        "default": 0.4
+      }
+    },
+    "CATALYST_SURPRISE": {
+      "surprise_min_pct": 5,
+      "surprise_norm_pct": 25,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 86400
+    },
+    "TA_SETUP": {
+      "os_lo": 30,
+      "ob_hi": 70,
+      "level_atr_mult": 1.5,
+      "target_atr_mult": 2.5,
+      "invalidation_atr_mult": 1.5,
+      "cooldown_s": 86400,
+      "max_useful_latency_s": 3600
+    }
+  },
+  "scoring_weights": { "w_sev": 0.4, "w_nov": 0.3, "w_rel": 0.3 },
+  "alert_tiers": { "tier_hi": 0.8, "tier_mid": 0.5 },
+  "extreme_severity_floor": 0.9,
+  "novelty_decay": 0.5,
+  "horizons": {
+    "crypto_intraday": { "kind": "wallclock", "seconds": 14400 },
+    "crypto_swing": { "kind": "wallclock", "seconds": 259200 },
+    "crypto_position": { "kind": "wallclock", "seconds": 864000 },
+    "stock_swing": { "kind": "trading_days", "days": 5 },
+    "stock_position": { "kind": "trading_days", "days": 21 },
+    "catalyst_window": { "kind": "event_settle", "settle_s": 86400 }
+  },
+  "family_horizons": {
+    "POS_WHALE_CONSENSUS": "crypto_swing",
+    "POS_WHALE_FLIP": "crypto_swing",
+    "POS_SMARTMONEY_SHIFT": "crypto_position",
+    "POS_INSIDER_CLUSTER": "stock_swing",
+    "POS_CONGRESS_DISCLOSURE": "stock_position",
+    "CROWD_DIVERGENCE": "crypto_swing",
+    "CROWD_MENTION_SPIKE": "crypto_intraday",
+    "CROWD_FUNDING_EXTREME": "crypto_intraday",
+    "CATALYST_UPCOMING": "catalyst_window",
+    "CATALYST_SURPRISE": "stock_position",
+    "TA_SETUP": "crypto_swing"
+  },
+  "haircut_r": { "crypto": 0.05, "stock": 0.02 },
+  "baselines": ["BASE_RANDOM", "BASE_ALWAYS_LONG", "BASE_MOMENTUM"]
+}

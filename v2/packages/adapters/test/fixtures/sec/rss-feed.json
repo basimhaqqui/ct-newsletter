@@ -1,0 +1,39 @@
+{
+  "feed": {
+    "entry": [
+      {
+        "title": "Form 4 - 2024-01-15 - Apple Inc.",
+        "link": { "href": "https://www.sec.gov/Archives/edgar/data/320193/000119312524000123/0001193125-24-000123-index.htm" },
+        "updated": "2024-01-15T14:30:00Z",
+        "id": "urn:uuid:12345678-1234-1234-1234-123456789012",
+        "content": { "type": "html", "$t": "<p>Form 4 filed by Timothy D. Cook on 2024-01-15 for Apple Inc. (AAPL)</p>" },
+        "sec:cik": "0000320193",
+        "sec:form-type": "4",
+        "sec:filing-date": "2024-01-15",
+        "sec:period-of-report": "2024-01-12"
+      },
+      {
+        "title": "Form 4 - 2024-01-15 - Microsoft Corporation",
+        "link": { "href": "https://www.sec.gov/Archives/edgar/data/789019/000119312524000124/0001193125-24-000124-index.htm" },
+        "updated": "2024-01-15T14:25:00Z",
+        "id": "urn:uuid:12345678-1234-1234-1234-123456789013",
+        "content": { "type": "html", "$t": "<p>Form 4 filed by Satya Nadella on 2024-01-15 for Microsoft Corporation (MSFT)</p>" },
+        "sec:cik": "0000789019",
+        "sec:form-type": "4",
+        "sec:filing-date": "2024-01-15",
+        "sec:period-of-report": "2024-01-12"
+      },
+      {
+        "title": "Form 4 - 2024-01-14 - NVIDIA Corporation",
+        "link": { "href": "https://www.sec.gov/Archives/edgar/data/1045810/000119312524000125/0001193125-24-000125-index.htm" },
+        "updated": "2024-01-14T18:00:00Z",
+        "id": "urn:uuid:12345678-1234-1234-1234-123456789014",
+        "content": { "type": "html", "$t": "<p>Form 4 filed by Jensen Huang on 2024-01-14 for NVIDIA Corporation (NVDA)</p>" },
+        "sec:cik": "0001045810",
+        "sec:form-type": "4",
+        "sec:filing-date": "2024-01-14",
+        "sec:period-of-report": "2024-01-11"
+      }
+    ]
+  }
+}

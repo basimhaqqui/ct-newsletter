@@ -1,0 +1,20 @@
+{
+  "name": "ct-newsletter-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "build": "tsc -b"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "typescript": "~5.4.5",
+    "vitest": "~1.6.1"
+  }
+}

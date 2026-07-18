@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@contracts/*": ["packages/contracts/src/*"],
+      "@config/*": ["packages/config/src/*"],
+      "@db/*": ["packages/db/src/*"],
+      "@identity/*": ["packages/identity/src/*"],
+      "@adapters/*": ["packages/adapters/src/*"],
+      "@normalization/*": ["packages/normalization/src/*"],
+      "@signals/*": ["packages/signals/src/*"],
+      "@grading/*": ["packages/grading/src/*"],
+      "@decisions/*": ["packages/decisions/src/*"],
+      "@briefs/*": ["packages/briefs/src/*"],
+      "@telegram/*": ["packages/telegram/src/*"],
+      "@outbox/*": ["packages/outbox/src/*"],
+      "@observability/*": ["packages/observability/src/*"],
+      "@privacy/*": ["packages/privacy/src/*"],
+      "@testing/*": ["packages/testing/src/*"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

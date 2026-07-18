@@ -1,0 +1,50 @@
+name: v2 cycle (shadow mode)
+on:
+  schedule:
+    - cron: '*/30 * * * *' # every 30 min, mirrors v1's hl-watch cadence
+  workflow_dispatch:
+
+concurrency:
+  group: v2-cycle
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: v2/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Restore engine state
+        uses: actions/cache/restore@v4
+        with:
+          path: v2/apps/daily/state
+          key: v2-engine-state
+      - name: Run cycle
+        working-directory: v2/apps/daily
+        env:
+          # Persistent ledger for shadow-mode grading; empty → in-memory dry run
+          DATABASE_URL: ${{ secrets.V2_DATABASE_URL }}
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+          # Shadow mode: point at a SEPARATE chat until cutover approval
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.V2_SHADOW_CHAT_ID }}
+          STOCK_SYMBOLS: AAPL,MSFT,NVDA,TSLA,SPY
+        run: pnpm start
+      - name: Save engine state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: v2/apps/daily/state
+          key: v2-engine-state-${{ github.run_id }}
