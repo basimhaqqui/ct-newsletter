@@ -29,8 +29,17 @@ try {
   const q = `(crypto OR altcoin OR memecoin OR pump OR gem OR ape OR "low cap") min_faves:${MIN_FAVES} -is:reply -is:retweet lang:en`;
   // maxItems is the platform charge cap — actor reads it from the query string, not the body.
   const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}&maxItems=120`;
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchTerms: [q], maxItems: 120, queryType: "Latest", since_time: since }) });
-  if (!res.ok) { const b = await res.text(); throw new Error(`Apify ${res.status} ${b.match(/"type":\s*"([^"]+)"/)?.[1] || b.slice(0, 80)}`); }
+  // actor runs occasionally die server-side (400 run-failed) — retry once before alerting
+  let res;
+  for (let attempt = 1; ; attempt++) {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchTerms: [q], maxItems: 120, queryType: "Latest", since_time: since }) });
+    if (res.ok) break;
+    const b = await res.text();
+    const err = new Error(`Apify ${res.status} ${b.match(/"type":\s*"([^"]+)"/)?.[1] || b.slice(0, 80)}`);
+    if (attempt >= 2) throw err;
+    console.error(`${err.message} — retrying in 30s`);
+    await new Promise((r) => setTimeout(r, 30_000));
+  }
   const raw = (await res.json()).filter((t) => t && t.text && !/From KaitoEasyAPI/i.test(t.text) && !t.isReply && !t.retweeted_tweet);
 
   // tally engagement-weighted viral mentions per cashtag
