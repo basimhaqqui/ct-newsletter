@@ -146,13 +146,23 @@ Checklist executed on the primary dev machine (macOS, Node 25, pnpm 10.33):
    v2-cycle.yml: without it every cycle is in-memory, signals do not persist
    across runs, and the graded ledger cannot accrue — §5.5 evidence therefore
    requires a hosted Postgres before the shadow clock meaningfully starts.
-6. **Pending (operator):** create the separate shadow Telegram chat and set
-   `V2_SHADOW_CHAT_ID`; set `ALPACA_API_KEY`/`ALPACA_API_SECRET` (stock jobs
-   are skipped without them); provision a hosted Postgres and set
-   `V2_DATABASE_URL`; optionally pass `APIFY_TOKEN` (already a repo secret)
-   through v2-cycle.yml env for mention-spike signals — deliberately not wired
-   yet since a 30-min Apify cadence has real per-run cost. v1 untouched and
-   still running.
+6. **Operator wiring — completed later the same day (2026-07-18 PM):**
+   - `V2_DATABASE_URL` → Neon (project market-intel-v2, PG18, us-west-2).
+     Required an `ssl` passthrough in `packages/db/src/pool.ts` (Neon mandates
+     TLS; createPool had no ssl option — it had only ever run against
+     localhost). Migrations 001–014 applied; pg suite green against Neon.
+   - `V2_SHADOW_CHAT_ID` → "MI v2 Shadow" Telegram group (-5508668469); bot
+     delivery verified with a direct test message, first live alert
+     (XMR CROWD_FUNDING_EXTREME) delivered 2026-07-19 00:00 UTC.
+   - `ALPACA_API_KEY/SECRET` → paper account. Found + fixed: the free-tier
+     data API returns an empty set when `start` is omitted, so
+     `liveAlpacaPort` fetched zero bars while health read "healthy"; ports.ts
+     now passes an explicit start (~150 d). Verified in Neon: 103 daily bars
+     × AAPL/MSFT/NVDA/TSLA/SPY as `stock:us:*` observations.
+   - Grader confirmed accruing across cloud runs (considered grows per cycle).
+   - Still deliberately unwired: `APIFY_TOKEN` passthrough (mention-spike
+     signals) — a 30-min Apify cadence has real per-run cost; operator's call.
+   v1 untouched and still running. **Shadow clock started 2026-07-18.**
 
 ---
 
