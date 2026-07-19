@@ -54,7 +54,9 @@ export function liveAlpacaPort(config: Partial<AlpacaConfig>): AlpacaPort {
   const adapter = createAlpacaAdapter(config);
   return {
     async fetchDailyBars(symbols: string[]) {
-      const raw = await adapter.fetchBars(symbols, '1Day', 100);
+      // free-tier data API returns an empty set when `start` is omitted
+      const start = new Date(Date.now() - 150 * 86_400_000).toISOString().slice(0, 10);
+      const raw = await adapter.fetchBars(symbols, '1Day', 100, start);
       const bars = adapter.normalizeBars(raw, '1Day');
       return bars.map((b) => ({
         symbol: b.symbol,
