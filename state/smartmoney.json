@@ -1,20 +1,15 @@
 {
   "coins": {
-    "BTC": {
-      "pctLong": 0.931,
-      "traders": 6,
-      "netN": 42008936
-    },
     "ETH": {
-      "pctLong": 0.962,
-      "traders": 6,
-      "netN": 35135960
+      "pctLong": 0.925,
+      "traders": 5,
+      "netN": 15964881
     },
     "HYPE": {
-      "pctLong": 0.309,
-      "traders": 5,
-      "netN": -2124927
+      "pctLong": 0.284,
+      "traders": 6,
+      "netN": -2590881
     }
   },
-  "updatedAt": 1784880410
+  "updatedAt": 1784899021
 }
