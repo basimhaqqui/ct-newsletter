@@ -3,18 +3,23 @@
     "ETH": {
       "pctLong": 0.946,
       "traders": 4,
-      "netN": 26287164
+      "netN": 26445521
+    },
+    "BTC": {
+      "pctLong": 0.47,
+      "traders": 4,
+      "netN": -1736764
     },
     "HYPE": {
-      "pctLong": 0.234,
-      "traders": 5,
-      "netN": -2601627
+      "pctLong": 0.107,
+      "traders": 6,
+      "netN": -8443922
     },
     "ZEC": {
-      "pctLong": 0.228,
+      "pctLong": 0.275,
       "traders": 4,
-      "netN": -1120038
+      "netN": -901651
     }
   },
-  "updatedAt": 1785332689
+  "updatedAt": 1785351393
 }
