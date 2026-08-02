@@ -21,7 +21,7 @@ import {
   secJob,
   socialJob,
 } from '@market-intel/ingestion';
-import { FileStateStore, gradeDue, runCycle } from '@market-intel/orchestrator';
+import { FileStateStore, buildEvidenceScorecard, gradeDue, runCycle } from '@market-intel/orchestrator';
 import { TelegramClient } from '@market-intel/telegram';
 import {
   fileCatalystPort,
@@ -103,6 +103,13 @@ async function main(): Promise<void> {
 
   const grades = await gradeDue({ repos, cohort: COHORT, now: () => new Date() });
   console.error(`grading: considered=${grades.considered} graded=${grades.graded}`);
+
+  // Logs only: this makes the cloud shadow run auditable without sending a
+  // performance claim or changing any alerting/execution path.
+  const scorecard = await buildEvidenceScorecard(repos, COHORT);
+  console.error(`evidence-scorecard: ${JSON.stringify(scorecard)}`);
+
+  await repos.close();
 }
 
 main().catch((err) => {

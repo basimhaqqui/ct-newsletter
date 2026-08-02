@@ -8,6 +8,7 @@ import { createInMemoryRepositoryFactory } from '@market-intel/db';
 import { IngestionScheduler, hyperliquidJob, type HyperliquidPort } from '@market-intel/ingestion';
 import type { SendResult, TelegramSender } from '@market-intel/telegram';
 import { gradeDue, runCycle } from '../src/cycle.js';
+import { buildEvidenceScorecard } from '../src/evidence-scorecard.js';
 import { MemoryStateStore } from '../src/state-store.js';
 
 const COHORT: unknown = JSON.parse(
@@ -134,6 +135,56 @@ describe('runCycle: the full product loop', () => {
     expect(abst.length).toBe(report.abstentions);
     expect(abst[0].reason).toBe('ABSTAIN_SOURCE');
     expect(telegram.sent.length).toBe(0);
+  });
+
+  it('reports shadow evidence conservatively and never marks promotion ready', async () => {
+    const telegram = new MockTelegram();
+    const d = deps(telegram, T0);
+    await runCycle(d);
+
+    const scorecard = await buildEvidenceScorecard(d.repos, COHORT);
+
+    expect(scorecard.status).toBe('INSUFFICIENT_EVIDENCE');
+    expect(scorecard.fired).toBeGreaterThan(0);
+    expect(scorecard.performanceGraded).toBe(0);
+    expect(scorecard.remainingForCohortPromotion).toBe(200);
+    expect(scorecard.families).toHaveLength(11);
+    expect(scorecard.sourceHealth.healthy).toBeGreaterThan(0);
+    expect(scorecard.promotionBlockedBy).toContain('cohort graded-sample floor');
+  });
+
+  it('counts a regraded signal once toward evidence floors', async () => {
+    const telegram = new MockTelegram();
+    const d = deps(telegram, T0);
+    await runCycle(d);
+    const [signal] = await d.repos.signals.findActive(1);
+    const row = {
+      id: 'grade-row-1',
+      grade_id: 'grade-1',
+      signal_id: signal.signal_id,
+      cohort_version: signal.cohort_version,
+      graded_at: new Date(T0.getTime() + 1_000),
+      horizon_end: new Date(T0.getTime() + signal.horizon_seconds * 1_000),
+      outcome: 'TIMEOUT_WIN' as const,
+      mfe_abs: null, mfe_pct: null, mfe_r: null, mae_abs: null, mae_pct: null, mae_r: null,
+      realized_r: 0.5, haircut_r: 0.05, end_price: signal.reference_price, end_r: 0.5,
+      bars_source: 'hyperliquid:1h', bars_count: 4, grader_version: 'grader/2.0.0',
+      origin: 'deterministic' as const, metadata: {}, created_at: new Date(T0.getTime() + 1_000),
+    };
+    await d.repos.grades.insert(row);
+    await d.repos.grades.insert({
+      ...row,
+      id: 'grade-row-2',
+      grade_id: 'grade-2',
+      graded_at: new Date(T0.getTime() + 2_000),
+      grader_version: 'grader/2.1.0',
+      created_at: new Date(T0.getTime() + 2_000),
+    });
+
+    const scorecard = await buildEvidenceScorecard(d.repos, COHORT);
+
+    expect(scorecard.performanceGraded).toBe(1);
+    expect(scorecard.families.find((family) => family.familyId === signal.family_id)?.performanceGraded).toBe(1);
   });
 });
 
