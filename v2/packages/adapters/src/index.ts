@@ -1,4 +1,5 @@
 export * from './hyperliquid/index.js';
+export * from './prediction/index.js';
 export { AlpacaAdapter, createAlpacaAdapter } from './alpaca/adapter.js';
 export type {
   AlpacaAssetNormalized,
