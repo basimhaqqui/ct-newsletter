@@ -2,14 +2,14 @@
   "coins": {
     "HYPE": {
       "pctLong": 0,
-      "traders": 9,
-      "netN": -17889276
+      "traders": 8,
+      "netN": -11314572
     },
     "BTC": {
-      "pctLong": 0.025,
-      "traders": 4,
-      "netN": -6968144
+      "pctLong": 0.158,
+      "traders": 6,
+      "netN": -7648814
     }
   },
-  "updatedAt": 1785806799
+  "updatedAt": 1785831563
 }
