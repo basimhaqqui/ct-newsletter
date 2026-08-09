@@ -1,10 +1,10 @@
 {
   "coins": {
     "HYPE": {
-      "pctLong": 0.006,
-      "traders": 9,
-      "netN": -19923585
+      "pctLong": 0.009,
+      "traders": 6,
+      "netN": -14107583
     }
   },
-  "updatedAt": 1786213295
+  "updatedAt": 1786236934
 }
