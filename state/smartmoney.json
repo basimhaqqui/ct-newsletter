@@ -3,13 +3,13 @@
     "HYPE": {
       "pctLong": 0,
       "traders": 6,
-      "netN": -10755058
+      "netN": -7903871
     },
     "PUMP": {
-      "pctLong": 0.913,
-      "traders": 8,
-      "netN": 3592108
+      "pctLong": 0.935,
+      "traders": 10,
+      "netN": 5308048
     }
   },
-  "updatedAt": 1786409808
+  "updatedAt": 1786430845
 }
