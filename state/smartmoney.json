@@ -3,18 +3,13 @@
     "PUMP": {
       "pctLong": 0.919,
       "traders": 7,
-      "netN": 3577207
-    },
-    "HYPE": {
-      "pctLong": 0.026,
-      "traders": 5,
-      "netN": -1497670
+      "netN": 3581140
     },
     "CASHCAT": {
       "pctLong": 1,
       "traders": 5,
-      "netN": 1136966
+      "netN": 1129971
     }
   },
-  "updatedAt": 1786560440
+  "updatedAt": 1786583118
 }
