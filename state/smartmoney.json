@@ -1,15 +1,20 @@
 {
   "coins": {
+    "ETH": {
+      "pctLong": 0.223,
+      "traders": 4,
+      "netN": -2659155
+    },
     "PUMP": {
-      "pctLong": 0.923,
-      "traders": 7,
-      "netN": 3796083
+      "pctLong": 0.924,
+      "traders": 8,
+      "netN": 3850726
     },
     "CASHCAT": {
       "pctLong": 1,
-      "traders": 5,
-      "netN": 1395843
+      "traders": 6,
+      "netN": 1590327
     }
   },
-  "updatedAt": 1786840826
+  "updatedAt": 1786861305
 }
