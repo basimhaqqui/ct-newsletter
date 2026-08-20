@@ -1,19 +1,26 @@
 {
   "baseline": {
-    "BTC": 1.81,
-    "ETH": 1.02,
-    "XRP": 1.55,
-    "SOL": 0.53,
-    "BNB": 0.47,
-    "HYPE": 0.35,
-    "MAME": 0.43,
-    "PEPE": 0.36,
-    "LINK": 0.43,
-    "CVX": 0.36,
-    "CYBERLEEK": 0.36,
-    "LUNC": 0.36,
-    "XPR": 0.36
+    "BTC": 3.09,
+    "ETH": 2.21,
+    "XRP": 1.73,
+    "SOL": 1.12,
+    "HYPE": 1.01,
+    "QOR": 1,
+    "ZKTC": 7,
+    "PONS": 1,
+    "PI": 1,
+    "DOG": 1,
+    "STRC": 1,
+    "SATA": 1,
+    "PUMP": 1,
+    "SEAL": 1,
+    "WLFI": 1,
+    "JOBLESS": 1
   },
-  "alerted": {},
-  "updatedAt": 1787187972
+  "alerted": {
+    "ZKTC": 1787229843,
+    "BTC": 1787229843,
+    "ETH": 1787229843
+  },
+  "updatedAt": 1787229843
 }
