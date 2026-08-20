@@ -1,30 +1,25 @@
 {
   "coins": {
+    "ETH": {
+      "pctLong": 0.751,
+      "traders": 15,
+      "netN": 14148516
+    },
     "BTC": {
       "pctLong": 1,
-      "traders": 9,
-      "netN": 26657725
-    },
-    "ETH": {
-      "pctLong": 1,
-      "traders": 12,
-      "netN": 24614549
+      "traders": 11,
+      "netN": 27719224
     },
     "HYPE": {
       "pctLong": 1,
-      "traders": 8,
-      "netN": 5912453
-    },
-    "PUMP": {
-      "pctLong": 1,
-      "traders": 5,
-      "netN": 3640922
+      "traders": 10,
+      "netN": 5463117
     },
     "CASHCAT": {
       "pctLong": 1,
       "traders": 5,
-      "netN": 1046607
+      "netN": 885002
     }
   },
-  "updatedAt": 1787163509
+  "updatedAt": 1787186289
 }
