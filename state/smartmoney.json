@@ -2,39 +2,44 @@
   "coins": {
     "BTC": {
       "pctLong": 1,
-      "traders": 16,
-      "netN": 63735552
-    },
-    "ETH": {
-      "pctLong": 1,
-      "traders": 10,
-      "netN": 19589130
+      "traders": 21,
+      "netN": 73282374
     },
     "ZEC": {
       "pctLong": 1,
-      "traders": 13,
-      "netN": 14738674
+      "traders": 12,
+      "netN": 20092652
+    },
+    "ETH": {
+      "pctLong": 1,
+      "traders": 12,
+      "netN": 17839459
     },
     "HYPE": {
       "pctLong": 1,
-      "traders": 14,
-      "netN": 13610516
+      "traders": 15,
+      "netN": 14238623
     },
     "PUMP": {
-      "pctLong": 0.996,
-      "traders": 13,
-      "netN": 7840160
+      "pctLong": 0.997,
+      "traders": 14,
+      "netN": 8190211
+    },
+    "SOL": {
+      "pctLong": 0.898,
+      "traders": 5,
+      "netN": 1340547
     },
     "LIT": {
       "pctLong": 1,
-      "traders": 4,
-      "netN": 1497509
+      "traders": 5,
+      "netN": 1623706
     },
     "NEAR": {
       "pctLong": 1,
-      "traders": 4,
-      "netN": 703301
+      "traders": 6,
+      "netN": 1551806
     }
   },
-  "updatedAt": 1787487518
+  "updatedAt": 1787508854
 }
