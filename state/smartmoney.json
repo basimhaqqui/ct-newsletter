@@ -1,40 +1,40 @@
 {
   "coins": {
     "HYPE": {
-      "pctLong": 0.987,
+      "pctLong": 0.986,
       "traders": 24,
-      "netN": 47483703
+      "netN": 45054687
     },
     "BTC": {
-      "pctLong": 0.988,
+      "pctLong": 0.981,
       "traders": 10,
-      "netN": 29272396
+      "netN": 28828531
     },
     "ZEC": {
-      "pctLong": 0.983,
-      "traders": 9,
-      "netN": 12146791
+      "pctLong": 0.973,
+      "traders": 8,
+      "netN": 7438771
     },
     "LIT": {
       "pctLong": 1,
-      "traders": 4,
-      "netN": 3224390
+      "traders": 5,
+      "netN": 5196505
     },
     "PUMP": {
       "pctLong": 1,
-      "traders": 6,
-      "netN": 2724089
+      "traders": 7,
+      "netN": 2897409
     },
     "CASHCAT": {
       "pctLong": 1,
       "traders": 6,
-      "netN": 1689652
+      "netN": 1599868
     },
     "ENA": {
-      "pctLong": 0.864,
-      "traders": 6,
-      "netN": 977485
+      "pctLong": 0.861,
+      "traders": 5,
+      "netN": 930632
     }
   },
-  "updatedAt": 1788343814
+  "updatedAt": 1788363347
 }
