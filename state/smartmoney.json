@@ -3,43 +3,38 @@
     "BTC": {
       "pctLong": 1,
       "traders": 15,
-      "netN": 53483839
+      "netN": 52781955
     },
     "ETH": {
-      "pctLong": 0.986,
-      "traders": 11,
-      "netN": 36010852
+      "pctLong": 0.988,
+      "traders": 12,
+      "netN": 42438535
     },
     "ZEC": {
-      "pctLong": 0.926,
-      "traders": 17,
-      "netN": 20633200
+      "pctLong": 0.922,
+      "traders": 16,
+      "netN": 19477185
     },
     "HYPE": {
-      "pctLong": 0.977,
-      "traders": 16,
-      "netN": 17591000
-    },
-    "UNI": {
-      "pctLong": 1,
-      "traders": 4,
-      "netN": 4544974
+      "pctLong": 0.973,
+      "traders": 12,
+      "netN": 15162740
     },
     "LIT": {
       "pctLong": 1,
       "traders": 4,
-      "netN": 3788383
+      "netN": 3776784
+    },
+    "SUI": {
+      "pctLong": 1,
+      "traders": 4,
+      "netN": 2383056
     },
     "VVV": {
-      "pctLong": 0.78,
-      "traders": 6,
-      "netN": 1125013
-    },
-    "NEAR": {
-      "pctLong": 1,
-      "traders": 5,
-      "netN": 1772792
+      "pctLong": 0.582,
+      "traders": 4,
+      "netN": 337694
     }
   },
-  "updatedAt": 1789242664
+  "updatedAt": 1789264966
 }
