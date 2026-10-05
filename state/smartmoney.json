@@ -1,50 +1,65 @@
 {
   "coins": {
-    "PUMP": {
+    "SUI": {
       "pctLong": 1,
-      "traders": 15,
-      "netN": 8375947
+      "traders": 7,
+      "netN": 13684716
     },
     "BTC": {
-      "pctLong": 0.839,
-      "traders": 5,
-      "netN": 5384667
+      "pctLong": 0.88,
+      "traders": 8,
+      "netN": 8205419
+    },
+    "PUMP": {
+      "pctLong": 1,
+      "traders": 14,
+      "netN": 7154919
+    },
+    "ETH": {
+      "pctLong": 0.758,
+      "traders": 8,
+      "netN": 2609856
+    },
+    "HYPE": {
+      "pctLong": 0.736,
+      "traders": 8,
+      "netN": 2157004
     },
     "NEAR": {
       "pctLong": 1,
       "traders": 9,
-      "netN": 5163535
-    },
-    "HYPE": {
-      "pctLong": 0.654,
-      "traders": 6,
-      "netN": 1492719
-    },
-    "ETH": {
-      "pctLong": 0.707,
-      "traders": 6,
-      "netN": 1714278
+      "netN": 3704798
     },
     "ZEC": {
-      "pctLong": 0.606,
-      "traders": 7,
-      "netN": 800897
+      "pctLong": 0.817,
+      "traders": 5,
+      "netN": 1385650
+    },
+    "LINK": {
+      "pctLong": 1,
+      "traders": 5,
+      "netN": 1612946
     },
     "ENA": {
       "pctLong": 1,
       "traders": 6,
-      "netN": 1240186
+      "netN": 1284489
     },
-    "ZRO": {
+    "TAO": {
       "pctLong": 1,
       "traders": 4,
-      "netN": 1012778
+      "netN": 1097199
     },
-    "SUI": {
+    "WLD": {
       "pctLong": 1,
       "traders": 4,
-      "netN": 657090
+      "netN": 800147
+    },
+    "XPL": {
+      "pctLong": 1,
+      "traders": 4,
+      "netN": 586447
     }
   },
-  "updatedAt": 1791146287
+  "updatedAt": 1791169217
 }
