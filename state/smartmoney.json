@@ -1,45 +1,40 @@
 {
   "coins": {
-    "ZEC": {
-      "pctLong": 0.916,
-      "traders": 9,
-      "netN": 9180341
-    },
-    "HYPE": {
-      "pctLong": 0.89,
-      "traders": 9,
-      "netN": 7842605
+    "NEAR": {
+      "pctLong": 0.901,
+      "traders": 5,
+      "netN": 5847727
     },
     "BTC": {
-      "pctLong": 0.938,
-      "traders": 10,
-      "netN": 8767026
-    },
-    "NEAR": {
-      "pctLong": 0.921,
+      "pctLong": 0.883,
       "traders": 7,
-      "netN": 8100664
+      "netN": 4089116
+    },
+    "ZEC": {
+      "pctLong": 0.717,
+      "traders": 6,
+      "netN": 1393591
+    },
+    "HYPE": {
+      "pctLong": 0.238,
+      "traders": 9,
+      "netN": -1196003
     },
     "ETH": {
-      "pctLong": 0.382,
-      "traders": 6,
-      "netN": -1057303
+      "pctLong": 0.848,
+      "traders": 4,
+      "netN": 1149301
     },
     "ENA": {
-      "pctLong": 0.54,
+      "pctLong": 0.652,
       "traders": 5,
-      "netN": 80782
-    },
-    "LIT": {
-      "pctLong": 1,
-      "traders": 4,
-      "netN": 978575
+      "netN": 327504
     },
     "VVV": {
       "pctLong": 0.102,
       "traders": 4,
-      "netN": -532113
+      "netN": -515459
     }
   },
-  "updatedAt": 1791867520
+  "updatedAt": 1791896992
 }
