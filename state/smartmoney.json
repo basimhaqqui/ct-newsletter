@@ -1,50 +1,55 @@
 {
   "coins": {
     "ETH": {
-      "pctLong": 0.016,
-      "traders": 10,
-      "netN": -23152062
+      "pctLong": 0.006,
+      "traders": 9,
+      "netN": -23617212
     },
     "BTC": {
-      "pctLong": 0.191,
-      "traders": 16,
-      "netN": -11045744
-    },
-    "HYPE": {
-      "pctLong": 0.023,
-      "traders": 11,
-      "netN": -7406730
+      "pctLong": 0.194,
+      "traders": 14,
+      "netN": -10783290
     },
     "ZEC": {
-      "pctLong": 0.104,
+      "pctLong": 0.712,
       "traders": 8,
-      "netN": -4432378
+      "netN": 6871884
     },
     "SOL": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -3965150
+      "netN": -4029047
+    },
+    "HYPE": {
+      "pctLong": 0.383,
+      "traders": 12,
+      "netN": -831628
     },
     "NEAR": {
-      "pctLong": 0.385,
-      "traders": 7,
-      "netN": -428647
+      "pctLong": 0.396,
+      "traders": 6,
+      "netN": -391552
     },
     "PUMP": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -1283699
+      "netN": -1415548
     },
     "UNI": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -984672
+      "netN": -1020388
+    },
+    "LIT": {
+      "pctLong": 0.509,
+      "traders": 4,
+      "netN": 13441
     },
     "ENA": {
-      "pctLong": 0.211,
+      "pctLong": 0.216,
       "traders": 6,
-      "netN": -365018
+      "netN": -387529
     }
   },
-  "updatedAt": 1793209035
+  "updatedAt": 1793224766
 }
