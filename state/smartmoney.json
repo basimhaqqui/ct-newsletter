@@ -2,29 +2,19 @@
   "coins": {
     "ETH": {
       "pctLong": 0,
-      "traders": 13,
-      "netN": -33169230
+      "traders": 11,
+      "netN": -32364641
     },
     "BTC": {
-      "pctLong": 0.002,
-      "traders": 15,
-      "netN": -29491062
+      "pctLong": 0.003,
+      "traders": 14,
+      "netN": -19016957
     },
     "HYPE": {
       "pctLong": 0,
-      "traders": 9,
-      "netN": -17153812
-    },
-    "ZEC": {
-      "pctLong": 0.41,
-      "traders": 5,
-      "netN": -1241244
-    },
-    "ENA": {
-      "pctLong": 0.056,
-      "traders": 5,
-      "netN": -902797
+      "traders": 8,
+      "netN": -9542257
     }
   },
-  "updatedAt": 1793919666
+  "updatedAt": 1793938231
 }
