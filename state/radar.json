@@ -1,29 +1,22 @@
 {
   "baseline": {
-    "BTC": 4.24,
-    "ETH": 0.98,
-    "SOL": 1.01,
-    "XRP": 5.47,
-    "TRUMP": 0.52,
-    "WLFI": 0.74,
-    "INJ": 0.36,
-    "SPY": 0.36,
-    "NVDA": 0.36,
-    "SNDK": 0.36,
-    "MU": 0.36,
-    "RAY": 0.36,
-    "MSTR": 1.2,
-    "VIX": 0.6,
-    "XLM": 0.6,
-    "NLYRA": 1,
-    "CRV": 1,
-    "PI": 1,
-    "CHAD": 1,
-    "XMR": 1,
-    "HYPE": 1
+    "BTC": 5.74,
+    "ETH": 1.39,
+    "SOL": 1.41,
+    "XRP": 6.08,
+    "TRUMP": 0.31,
+    "WLFI": 0.44,
+    "MSTR": 0.72,
+    "VIX": 0.36,
+    "XLM": 0.36,
+    "NLYRA": 0.6,
+    "CRV": 0.6,
+    "PI": 0.6,
+    "CHAD": 0.6,
+    "XMR": 0.6,
+    "HYPE": 1,
+    "NULL": 1
   },
-  "alerted": {
-    "XRP": 1793941761
-  },
-  "updatedAt": 1794026506
+  "alerted": {},
+  "updatedAt": 1794072373
 }
