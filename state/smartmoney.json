@@ -2,74 +2,79 @@
   "coins": {
     "ETH": {
       "pctLong": 0,
-      "traders": 11,
-      "netN": -25918949
+      "traders": 12,
+      "netN": -25291119
     },
     "BTC": {
-      "pctLong": 0.027,
-      "traders": 13,
-      "netN": -17752194
+      "pctLong": 0.022,
+      "traders": 16,
+      "netN": -18937975
     },
     "HYPE": {
-      "pctLong": 0.017,
-      "traders": 11,
-      "netN": -6346649
+      "pctLong": 0.014,
+      "traders": 13,
+      "netN": -7304468
     },
     "NEAR": {
       "pctLong": 0,
       "traders": 7,
-      "netN": -4192284
+      "netN": -4308098
     },
     "SOL": {
       "pctLong": 0,
-      "traders": 8,
-      "netN": -3890543
+      "traders": 9,
+      "netN": -4177978
+    },
+    "XMR": {
+      "pctLong": 0.01,
+      "traders": 5,
+      "netN": -2582857
     },
     "LIT": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -2521470
-    },
-    "XMR": {
-      "pctLong": 0.011,
-      "traders": 4,
-      "netN": -2344677
-    },
-    "AERO": {
-      "pctLong": 0,
-      "traders": 6,
-      "netN": -1434814
+      "netN": -2564834
     },
     "ZEC": {
       "pctLong": 0,
-      "traders": 4,
-      "netN": -1412341
+      "traders": 5,
+      "netN": -1787957
+    },
+    "AERO": {
+      "pctLong": 0,
+      "traders": 7,
+      "netN": -1595757
     },
     "ZRO": {
-      "pctLong": 0.066,
+      "pctLong": 0.056,
       "traders": 6,
-      "netN": -1101820
+      "netN": -1353214
     },
     "ENA": {
-      "pctLong": 0.098,
-      "traders": 7,
-      "netN": -982470
+      "pctLong": 0.093,
+      "traders": 6,
+      "netN": -963733
     },
     "UNI": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -1068311
+      "netN": -1065698
     },
     "XPL": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -751590
+      "netN": -767449
+    },
+    "WLFI": {
+      "pctLong": 1,
+      "traders": 4,
+      "netN": 720820
     },
     "STRK": {
       "pctLong": 0,
       "traders": 5,
-      "netN": -438025
+      "netN": -439057
     }
   },
-  "updatedAt": 1794272285
+  "updatedAt": 1794319002
 }
