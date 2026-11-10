@@ -2,39 +2,74 @@
   "coins": {
     "ETH": {
       "pctLong": 0,
-      "traders": 14,
-      "netN": -27203400
+      "traders": 11,
+      "netN": -25918949
     },
     "BTC": {
-      "pctLong": 0.01,
-      "traders": 16,
-      "netN": -17948597
+      "pctLong": 0.027,
+      "traders": 13,
+      "netN": -17752194
     },
     "HYPE": {
-      "pctLong": 0.039,
-      "traders": 12,
-      "netN": -8744176
+      "pctLong": 0.017,
+      "traders": 11,
+      "netN": -6346649
+    },
+    "NEAR": {
+      "pctLong": 0,
+      "traders": 7,
+      "netN": -4192284
+    },
+    "SOL": {
+      "pctLong": 0,
+      "traders": 8,
+      "netN": -3890543
+    },
+    "LIT": {
+      "pctLong": 0,
+      "traders": 4,
+      "netN": -2521470
     },
     "XMR": {
       "pctLong": 0.011,
       "traders": 4,
-      "netN": -2435846
+      "netN": -2344677
     },
-    "SOL": {
+    "AERO": {
       "pctLong": 0,
-      "traders": 5,
-      "netN": -1860467
+      "traders": 6,
+      "netN": -1434814
     },
-    "NEAR": {
+    "ZEC": {
       "pctLong": 0,
-      "traders": 5,
-      "netN": -1269167
+      "traders": 4,
+      "netN": -1412341
+    },
+    "ZRO": {
+      "pctLong": 0.066,
+      "traders": 6,
+      "netN": -1101820
     },
     "ENA": {
-      "pctLong": 0.116,
+      "pctLong": 0.098,
+      "traders": 7,
+      "netN": -982470
+    },
+    "UNI": {
+      "pctLong": 0,
+      "traders": 4,
+      "netN": -1068311
+    },
+    "XPL": {
+      "pctLong": 0,
+      "traders": 4,
+      "netN": -751590
+    },
+    "STRK": {
+      "pctLong": 0,
       "traders": 5,
-      "netN": -793218
+      "netN": -438025
     }
   },
-  "updatedAt": 1794235240
+  "updatedAt": 1794272285
 }
