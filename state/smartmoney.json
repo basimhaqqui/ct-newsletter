@@ -2,94 +2,74 @@
   "coins": {
     "ETH": {
       "pctLong": 0,
-      "traders": 11,
-      "netN": -36784880
+      "traders": 12,
+      "netN": -57289854
     },
     "BTC": {
       "pctLong": 0,
-      "traders": 16,
-      "netN": -25758932
+      "traders": 15,
+      "netN": -39949225
     },
     "HYPE": {
-      "pctLong": 0.05,
-      "traders": 14,
-      "netN": -5048332
+      "pctLong": 0.008,
+      "traders": 11,
+      "netN": -12563120
+    },
+    "NEAR": {
+      "pctLong": 0,
+      "traders": 6,
+      "netN": -5392411
+    },
+    "ZRO": {
+      "pctLong": 0,
+      "traders": 5,
+      "netN": -3920796
     },
     "XMR": {
       "pctLong": 0,
-      "traders": 5,
-      "netN": -3287960
+      "traders": 4,
+      "netN": -3422037
     },
-    "NEAR": {
-      "pctLong": 0.019,
-      "traders": 7,
-      "netN": -2315697
-    },
-    "ZEC": {
-      "pctLong": 0.062,
-      "traders": 7,
-      "netN": -1875463
-    },
-    "SOL": {
-      "pctLong": 0,
-      "traders": 6,
-      "netN": -1923617
-    },
-    "LINK": {
+    "STRK": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -1588147
-    },
-    "AERO": {
-      "pctLong": 0,
-      "traders": 7,
-      "netN": -1376335
-    },
-    "ZRO": {
-      "pctLong": 0.075,
-      "traders": 5,
-      "netN": -1009572
-    },
-    "ENA": {
-      "pctLong": 0.031,
-      "traders": 7,
-      "netN": -1042767
-    },
-    "UNI": {
-      "pctLong": 0,
-      "traders": 4,
-      "netN": -1110279
+      "netN": -2810208
     },
     "XPL": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -796233
+      "netN": -2622207
     },
-    "kPEPE": {
+    "ENA": {
+      "pctLong": 0.033,
+      "traders": 7,
+      "netN": -1781986
+    },
+    "MON": {
       "pctLong": 0,
       "traders": 5,
-      "netN": -586836
+      "netN": -1630950
     },
-    "STRK": {
+    "SOL": {
       "pctLong": 0,
       "traders": 5,
-      "netN": -544721
+      "netN": -1547465
     },
-    "AAVE": {
+    "AERO": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -360259
+      "netN": -1270137
     },
-    "PURR": {
+    "LINK": {
+      "pctLong": 0.063,
+      "traders": 4,
+      "netN": -485690
+    },
+    "SYRUP": {
       "pctLong": 0,
       "traders": 4,
-      "netN": -198518
-    },
-    "USELESS": {
-      "pctLong": 0,
-      "traders": 4,
-      "netN": -184123
+      "netN": -349416
     }
   },
-  "updatedAt": 1794402680
+  "updatedAt": 1794441042
 }
